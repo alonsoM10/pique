@@ -120,13 +120,29 @@ const p2 = () => {
   const restan = peso && obj && peso > obj ? peso - obj : null;
   const semanas = restan ? Math.ceil(restan / d.ritmo) : null;
   const fecha = semanas ? S.fmtFechaLarga(S.addDays(S.todayISO(), semanas * 7)) : null;
+
+  // Rango de peso "sano" por IMC (18,5-24,9) para tu altura, como referencia — no como límite.
+  const alt = parseFloat(String(d.alturaCm).replace(',', '.'));
+  const m2 = alt ? (alt / 100) ** 2 : null;
+  const imcMin = m2 ? Math.round(18.5 * m2 * 10) / 10 : null;
+  const imcMax = m2 ? Math.round(24.9 * m2 * 10) / 10 : null;
+  const bajoDelRango = imcMin != null && obj && obj < imcMin;
+
   return `
   <div class="card">
     <h2 style="font-size:20px">¿A dónde quieres llegar?</h2>
     <div class="stack" style="margin-top:14px">
       <div class="field"><label class="label">Peso objetivo (kg)</label>
         <input class="input num" data-d="pesoObjetivo" type="number" inputmode="decimal" step="0.5"
-          value="${esc(d.pesoObjetivo)}" placeholder="—"></div>
+          value="${esc(d.pesoObjetivo)}" placeholder="${imcMin ? imcMin + '-' + imcMax : '—'}"></div>
+      ${imcMin ? `<p class="tiny dim" style="margin:0">
+          Para ${alt} cm, el rango de peso saludable (IMC) va de <b>${imcMin}</b> a <b>${imcMax} kg</b>.
+          Es solo una referencia estadística, no una regla — tú y tu nutricionista deciden tu meta real.
+        </p>` : `<p class="tiny dim" style="margin:0">Pon tu altura en el paso 1 y te muestro un rango de referencia.</p>`}
+      ${bajoDelRango ? `<p class="small" style="color:var(--w);margin:0">
+          &#9888; ${obj} kg queda por debajo de ese rango. No es necesariamente malo, pero coméntalo
+          con tu nutricionista antes de fijarlo como meta — no lo cambies solo por lo que dice la app.
+        </p>` : ''}
       <div class="field">
         <label class="label">¿A qué ritmo?</label>
         <div class="chips">

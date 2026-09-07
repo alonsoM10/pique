@@ -60,7 +60,12 @@ export function render() {
             <div class="item-t">${esc(c.nombre)} <span class="dim tiny" style="font-weight:600">${esc(c.hora || '')}</span></div>
             <div class="item-s">${c.detalle ? esc(c.detalle) : 'Sin detalle'}${c.kcal ? ` · ${num(c.kcal)} kcal` : ''}</div>
           </div>
-          <button class="btn ghost sm" data-edcomida="${c.id}">&#9998;</button>
+          <div class="row" style="gap:5px;flex:none">
+            <button class="btn ghost sm" data-opciones="${c.id}" aria-label="Otras opciones para ${esc(c.nombre)}">
+              &#129302;${c.alternativas?.length ? ` ${c.alternativas.length}` : ''}
+            </button>
+            <button class="btn ghost sm" data-edcomida="${c.id}">&#9998;</button>
+          </div>
         </div>`).join('')}
       ${!p.comidas.length ? '<div class="empty">Añade las comidas de tu minuta</div>' : ''}
     </div>
@@ -107,6 +112,11 @@ export function mount(root, ir, rerender) {
   root.querySelectorAll('[data-edcomida]').forEach(b => b.onclick = () => {
     const c = p.comidas.find(x => x.id === b.dataset.edcomida);
     sheetComida(c, rerender);
+  });
+
+  root.querySelectorAll('[data-opciones]').forEach(b => b.onclick = () => {
+    const c = p.comidas.find(x => x.id === b.dataset.opciones);
+    sheetOpciones(c, rerender);
   });
 
   root.querySelector('#addComida').onclick = () => {
@@ -246,6 +256,112 @@ Almuerzo | 14:00 | Pollo, arroz integral, ensalada | 650
       rerender();
     };
   });
+}
+
+// ------------------------------------------------------------------ opciones / sustitutos con IA
+//
+// Cada comida de la minuta puede acumular "alternativas": otra cosa que comer en su lugar,
+// con calorías parecidas, sugerida por una IA a partir de lo que YA come esa persona. Se guardan
+// una vez y quedan para siempre — la próxima vez que toque esa comida no hay que volver a pedirla.
+
+const promptAlternativa = (c) => `Este es mi plan para ${c.nombre.toLowerCase()}: ${c.detalle || '(sin detalle todavía)'}${c.kcal ? ` (~${c.kcal} kcal)` : ''}.
+
+Dame UNA alternativa distinta que pueda comer en su lugar ese día, con calorías parecidas
+(y macros parecidos si puedes) y que sea igual de fácil de preparar. Que sea algo distinto,
+no una versión casi idéntica.
+
+Respóndeme en una sola línea con este formato exacto, sin nada más:
+
+Detalle | Kcal
+
+Ejemplo:
+150 g de pavo a la plancha, 200 g de boniato asado, ensalada verde | 480
+`;
+
+function parsearAlternativa(texto) {
+  const linea = texto.split('\n').map(l => l.trim()).find(Boolean);
+  if (!linea) return null;
+  const partes = linea.split('|').map(p => p.trim());
+  let kcal = 0;
+  if (partes.length > 1 && /\d/.test(partes[partes.length - 1])) {
+    kcal = parseInt(partes.pop().replace(/[^\d]/g, ''), 10) || 0;
+  }
+  const detalle = partes.join(' | ').trim();
+  if (!detalle) return null;
+  return { detalle, kcal };
+}
+
+function sheetOpciones(c, rerender) {
+  const alternativas = c.alternativas || [];
+
+  const pintar = () => {
+    abrirSheet(`Opciones · ${c.nombre}`, `
+      <div class="stack">
+        <div class="card flat">
+          <div class="tiny dim" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">
+            Lo que dice tu minuta
+          </div>
+          <div class="small" style="font-weight:600">${c.detalle ? esc(c.detalle) : 'Sin detalle todavía'}</div>
+          ${c.kcal ? `<div class="tiny dim" style="margin-top:2px">${c.kcal} kcal</div>` : ''}
+        </div>
+
+        ${alternativas.length ? `
+          <div class="sec-title" style="margin-left:0">Alternativas guardadas</div>
+          <div class="list">
+            ${alternativas.map((a, i) => `
+              <div class="item tight">
+                <div style="flex:1;min-width:0">
+                  <div class="item-t" style="font-size:13.5px">${esc(a.detalle)}</div>
+                  ${a.kcal ? `<div class="item-s">${a.kcal} kcal</div>` : ''}
+                </div>
+                <button class="btn sm" data-comi="${i}">Comí esto</button>
+                <button class="btn ghost sm" data-quitaralt="${i}">&#10005;</button>
+              </div>`).join('')}
+          </div>` : ''}
+
+        <button class="btn ghost full sm" id="opCopiar">Copiar instrucciones para pedirle una alternativa a la IA</button>
+        <div class="field">
+          <label class="label">Pega aquí lo que te responda</label>
+          <textarea class="input" id="opTexto" style="min-height:70px"
+            placeholder="150 g de pavo a la plancha, 200 g de boniato asado, ensalada | 480"></textarea>
+        </div>
+        <button class="btn pri full" id="opGuardar">Guardar como alternativa</button>
+      </div>`, (b) => {
+      b.querySelector('#opCopiar').onclick = async () => {
+        try { await navigator.clipboard.writeText(promptAlternativa(c)); toast('Copiado — pégalo en tu IA'); }
+        catch (e) { toast('Tu navegador no deja copiar aquí; selecciona el texto a mano'); }
+      };
+
+      b.querySelectorAll('[data-comi]').forEach(x => x.onclick = () => {
+        const a = alternativas[Number(x.dataset.comi)];
+        S.registrarAlimento({
+          nombre: `${c.nombre}: ${a.detalle}`, gramos: null,
+          kcal: a.kcal || 0, prot: 0, carb: 0, gras: 0,
+        });
+        cerrarSheet();
+        toast('Registrado en el día de hoy');
+        rerender();
+      });
+
+      b.querySelectorAll('[data-quitaralt]').forEach(x => x.onclick = () => {
+        alternativas.splice(Number(x.dataset.quitaralt), 1);
+        c.alternativas = alternativas;
+        S.save();
+        pintar();
+      });
+
+      b.querySelector('#opGuardar').onclick = () => {
+        const parsed = parsearAlternativa(b.querySelector('#opTexto').value);
+        if (!parsed) return toast('Pega la respuesta en formato Detalle | Kcal');
+        alternativas.push(parsed);
+        c.alternativas = alternativas;
+        S.save();
+        toast('Alternativa guardada');
+        pintar();
+      };
+    });
+  };
+  pintar();
 }
 
 // ------------------------------------------------------------------ minuta

@@ -103,6 +103,8 @@ function sheetPerfiles() {
         cerrarSheet();
         const p = S.perfil();
         if (!p.onboarding) return arrancarOnboarding();
+        enOnboarding = false; // por si veníamos de un asistente a medias de otra persona
+        ruta = 'hoy';
         pintar();
       });
       b.querySelectorAll('[data-quitar]').forEach(x => x.onclick = async (e) => {
@@ -112,6 +114,8 @@ function sheetPerfiles() {
           `Se borran todos los datos de ${objetivo.nombre} de este móvil.`, 'Quitar')) return;
         S.eliminarPerfil(x.dataset.quitar);
         cerrarSheet();
+        if (!S.perfil().onboarding) return arrancarOnboarding();
+        enOnboarding = false;
         pintar();
       });
     };
