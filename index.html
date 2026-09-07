@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Pique</title>
+<meta name="description" content="Rutina de gym, comidas y progreso. Sin suscripciones.">
+<meta name="theme-color" content="#0b0f14">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pique">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="splash" class="splash">
+  <div class="splash-mark">P</div>
+</div>
+
+<header id="topbar" class="topbar">
+  <div class="topbar-inner">
+    <button class="who" id="whoBtn" type="button">
+      <span class="who-avatar" id="whoAvatar">A</span>
+      <span class="who-name" id="whoName">Alonso</span>
+      <span class="who-caret">&#9662;</span>
+    </button>
+    <h1 class="topbar-title" id="viewTitle">Hoy</h1>
+    <button class="icon-btn" id="settingsBtn" type="button" aria-label="Ajustes">&#9881;</button>
+  </div>
+</header>
+
+<main id="app" class="app"></main>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab" data-route="hoy" type="button"><span class="tab-ico">&#9678;</span><span>Hoy</span></button>
+  <button class="tab" data-route="entreno" type="button"><span class="tab-ico">&#9878;</span><span>Entreno</span></button>
+  <button class="tab" data-route="comida" type="button"><span class="tab-ico">&#9737;</span><span>Comida</span></button>
+  <button class="tab" data-route="progreso" type="button"><span class="tab-ico">&#9650;</span><span>Progreso</span></button>
+  <button class="tab" data-route="pique" type="button"><span class="tab-ico">&#9876;</span><span>Pique</span></button>
+</nav>
+
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-backdrop" data-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true">
+    <div class="sheet-grab"></div>
+    <div class="sheet-head">
+      <h2 id="sheetTitle">&nbsp;</h2>
+      <button class="icon-btn" data-close type="button" aria-label="Cerrar">&#10005;</button>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
