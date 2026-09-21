@@ -1,15 +1,15 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=7';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=7';
-import * as Onb from './onboarding.js?v=7';
-import * as Hoy from './view-hoy.js?v=7';
-import * as Entreno from './view-entreno.js?v=7';
-import * as Comida from './view-comida.js?v=7';
-import * as Progreso from './view-progreso.js?v=7';
-import * as Pique from './view-pique.js?v=7';
-import * as Ayuda from './view-ayuda.js?v=7';
-import * as Exp from './exportar.js?v=7';
+import * as S from './store.js?v=8';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=8';
+import * as Onb from './onboarding.js?v=8';
+import * as Hoy from './view-hoy.js?v=8';
+import * as Entreno from './view-entreno.js?v=8';
+import * as Comida from './view-comida.js?v=8';
+import * as Progreso from './view-progreso.js?v=8';
+import * as Pique from './view-pique.js?v=8';
+import * as Ayuda from './view-ayuda.js?v=8';
+import * as Exp from './exportar.js?v=8';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -274,7 +274,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=7');
+        const Gem = await import('./gemini.js?v=8');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -293,7 +293,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=7');
+        const Gem = await import('./gemini.js?v=8');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {

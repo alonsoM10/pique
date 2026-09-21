@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=7';
-import { esc, num, anillo } from './ui.js?v=7';
+import * as S from './store.js?v=8';
+import { esc, num, anillo } from './ui.js?v=8';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [
@@ -55,12 +55,79 @@ const AVISO_SIN_CONFIGURAR = (s) => s.perfiles.some(p => !p.onboarding) ? `
 
 export function render() {
   const s = S.state();
-  if (s.perfiles.length < 2) return renderSolo(s.perfiles[0]);
-  if (s.perfiles.length === 2) return renderDuelo(s.perfiles[0], s.perfiles[1], s);
-  return renderRanking(s);
+  const activo = S.perfil();
+  const ocultos = new Set(S.piqueOcultos());
+  // tú siempre estás; de los demás, solo los que no has ocultado
+  const gente = s.perfiles.filter(p => p.id === activo.id || !ocultos.has(p.id));
+
+  const cabecera = selectorHtml(s, activo, ocultos) + (gente.length >= 2 ? actividadHtml(gente) : '');
+
+  let cuerpo;
+  if (gente.length < 2) cuerpo = renderSolo(activo);
+  else if (gente.length === 2) cuerpo = renderDuelo(gente[0], gente[1], s);
+  else cuerpo = renderRanking(gente, s);
+
+  // metemos la cabecera como primeros hijos del stack del cuerpo
+  return cuerpo.replace('<div class="stack">', `<div class="stack">${cabecera}`);
 }
 
-export function mount() { /* solo lectura */ }
+export function mount(root, ir, rerender) {
+  root.querySelectorAll('[data-toggle]').forEach(b => b.onclick = () => {
+    S.togglePiqueOculto(b.dataset.toggle);
+    rerender();
+  });
+}
+
+// Chips para elegir a quién ver. La persona activa (tú) queda fija.
+function selectorHtml(s, activo, ocultos) {
+  if (s.perfiles.length < 2) return '';
+  return `
+    <div class="card tight">
+      <div class="tiny dim" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px">
+        ¿Con quién te comparas?
+      </div>
+      <div class="chips" style="flex-wrap:wrap;overflow:visible">
+        <span class="chip on" style="opacity:.9">${esc(S.avatar(activo))} ${esc(activo.nombre)} (tú)</span>
+        ${s.perfiles.filter(p => p.id !== activo.id).map(p => `
+          <button class="chip ${ocultos.has(p.id) ? '' : 'on'}" data-toggle="${p.id}">
+            ${esc(S.avatar(p))} ${esc(p.nombre)}
+          </button>`).join('')}
+      </div>
+      <p class="tiny dim" style="margin:8px 0 0">Toca a alguien para incluirlo o sacarlo del pique.</p>
+    </div>`;
+}
+
+// Fila por persona con lo que hizo HOY: entreno, comida y creatina.
+function actividadHtml(gente) {
+  const hoy = S.todayISO();
+  const chip = (on, txt) => `<span style="font-size:11px;padding:2px 7px;border-radius:99px;
+    background:${on ? 'var(--a-dim)' : 'var(--card-2)'};color:${on ? 'var(--a)' : 'var(--tx-3)'};
+    border:1px solid ${on ? '#245840' : 'var(--line)'};font-weight:700">${txt}</span>`;
+  return `
+    <div class="card tight">
+      <div class="tiny dim" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px">
+        Hoy
+      </div>
+      <div class="list" style="gap:9px">
+        ${gente.map(p => {
+          const entreno = p.sesiones.some(x => x.fecha === hoy);
+          const comio = (p.registroComida || []).some(x => x.fecha === hoy) ||
+            Object.keys(p.marcadas[hoy] || {}).length > 0;
+          const creatina = S.tomoCreatina(hoy, p);
+          return `<div class="row" style="gap:10px;align-items:center">
+            <span style="width:30px;height:30px;border-radius:99px;display:grid;place-items:center;flex:none;
+              background:${p.color};color:#07130c;font-weight:800">${esc(S.avatar(p))}</span>
+            <span style="flex:1;min-width:0;font-weight:600" class="small">${esc(p.nombre)}</span>
+            <span class="row" style="gap:5px;flex:none">
+              ${chip(entreno, '🏋️ gym')}
+              ${chip(comio, '🍽️ comida')}
+              ${chip(creatina, '💊')}
+            </span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
 
 // ------------------------------------------------------------------ solo (1 persona)
 
@@ -160,9 +227,7 @@ function renderDuelo(a, b, s) {
 
 // ------------------------------------------------------------------ ranking (3 o más)
 
-function renderRanking(s) {
-  const gente = s.perfiles;
-
+function renderRanking(gente, s) {
   // 1 punto por métrica ganada en solitario (si hay empate en el máximo, esa métrica no da punto)
   const puntos = new Map(gente.map(p => [p.id, 0]));
   METRICAS.forEach(m => {

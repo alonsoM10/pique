@@ -108,6 +108,7 @@ const estadoInicial = () => {
     creado: todayISO(),
     geminiKey: '',   // clave gratis de Google AI Studio; vive solo en este móvil
     workerUrl: '',   // URL del Worker de Cloudflare (open source); si está, se usa esta
+    piqueOcultos: [], // ids de personas que NO quiero ver en el Pique
   };
 };
 
@@ -154,6 +155,16 @@ export const workerUrl = () => load().workerUrl || '';
 export function setWorkerUrl(u) { load().workerUrl = (u || '').trim(); save(); }
 // ¿Está configurada alguna forma de analizar la foto?
 export const iaFotoLista = () => !!(load().workerUrl || load().geminiKey);
+
+// Pique: a quién NO mostrar en la comparativa (cada uno elige con quién compararse).
+export const piqueOcultos = () => load().piqueOcultos || [];
+export function togglePiqueOculto(id) {
+  const s = load();
+  s.piqueOcultos = s.piqueOcultos || [];
+  const i = s.piqueOcultos.indexOf(id);
+  if (i >= 0) s.piqueOcultos.splice(i, 1); else s.piqueOcultos.push(id);
+  save();
+}
 
 export const perfil = () => {
   const s = load();
