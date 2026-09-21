@@ -230,9 +230,9 @@ const p4 = () => {
             .map(([v, n]) => `<button class="chip ${d.minuta === v ? 'on' : ''}" data-set="minuta:${v}">${n}</button>`).join('')}
         </div>
         ${d.minuta === 'ahora' ? `<p class="tiny dim" style="margin:0">
-          No hace falta que escribas comida por comida: en la pestaña Comida hay un botón
-          "Importar con IA" — le pasas tu PDF a cualquier IA con unas instrucciones que te doy,
-          pegas su respuesta y la minuta queda cargada entera.</p>` : ''}
+          No hace falta que escribas comida por comida: en la pestaña Comida, con
+          <b>Cargar mi minuta</b>, pegas el plan de tu nutricionista tal cual y la app lo
+          entiende y lo recuerda.</p>` : ''}
       </div>
       <div class="field">
         <label class="label">Calorías diarias</label>

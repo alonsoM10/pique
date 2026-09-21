@@ -67,11 +67,14 @@ export function render() {
             <button class="btn ghost sm" data-edcomida="${c.id}">&#9998;</button>
           </div>
         </div>`).join('')}
-      ${!p.comidas.length ? '<div class="empty">Añade las comidas de tu minuta</div>' : ''}
+      ${!p.comidas.length ? '<div class="empty">Toca <b>Cargar mi minuta</b> y pega el plan de tu nutricionista</div>' : ''}
     </div>
+    ${p.comidas.length ? `<button class="btn blue full sm" id="opcionesMinuta">
+      &#129302; Darme opciones de comida
+    </button>` : ''}
     <div class="grid2">
       <button class="btn ghost sm" id="addComida">+ Añadir comida</button>
-      <button class="btn ghost sm" id="importarIA">&#129302; Importar con IA</button>
+      <button class="btn ${p.comidas.length ? 'ghost' : 'pri'} sm" id="importarIA">&#128203; Cargar mi minuta</button>
     </div>
 
     <div class="sec-title">Registrado hoy</div>
@@ -127,87 +130,188 @@ export function mount(root, ir, rerender) {
   root.querySelector('#btnScan').onclick = () => sheetEscaner(rerender);
   root.querySelector('#btnBuscar').onclick = () => sheetBuscar(rerender);
   root.querySelector('#importarIA').onclick = () => sheetImportarIA(rerender);
+  root.querySelector('#opcionesMinuta')?.addEventListener('click', () => sheetOpcionesMinuta(rerender));
 }
 
-// ------------------------------------------------------------------ importar minuta con IA
+// ------------------------------------------------------------------ cargar minuta
 //
-// En vez de guardar el PDF del nutricionista (pesado y localStorage anda corto de sitio),
-// el usuario le pide a cualquier IA de texto que se lo resuma en líneas con "|" y pega
-// aquí el resultado. Así la minuta ocupa un par de líneas en vez de varios megas de PDF.
+// La idea, en simple: pegas la minuta que te dio tu nutricionista (o el texto que te dé una
+// IA si la tienes en PDF/foto), la app la entiende y la recuerda, y desde ahí te muestra en
+// limpio qué puedes comer cada día. No guardamos el PDF entero — solo el texto ya ordenado.
+//
+// El parser acepta DOS formatos sin que el usuario tenga que saber cuál:
+//   1) con barras:  Desayuno | 08:00 | 2 huevos, tostada, café | 420
+//   2) natural:     "Desayuno (08:00): 2 huevos, tostada, café — 420 kcal"
+//                   o el nombre de la comida en una línea y los alimentos debajo.
 
-const PROMPT_IA = `Tengo el plan de comidas de mi nutricionista en PDF y quiero pasarlo a un formato simple.
-Es MI plan personal, así que descríbelo pensando en una sola persona (yo), no en general.
+// Nombres de comida que reconocemos como "cabecera" (sin tildes, en minúscula).
+const COMIDAS_CONOCIDAS = [
+  ['desayuno', 'Desayuno'],
+  ['media manana', 'Media mañana'],
+  ['colacion', 'Colación'],
+  ['almuerzo', 'Almuerzo'],
+  ['comida', 'Comida'],
+  ['merienda', 'Merienda'],
+  ['once', 'Once'],
+  ['cena', 'Cena'],
+  ['recena', 'Recena'],
+  ['snack', 'Snack'],
+  ['pre-entreno', 'Pre-entreno'], ['pre entreno', 'Pre-entreno'], ['preentreno', 'Pre-entreno'],
+  ['post-entreno', 'Post-entreno'], ['post entreno', 'Post-entreno'], ['postentreno', 'Post-entreno'],
+  ['antes de dormir', 'Antes de dormir'],
+];
 
-Para cada comida del día, escribe UNA línea así, sin numerar y sin texto de más:
+const sinTildes = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 
-Nombre | Hora | Detalle | Kcal
+// Saca "08:00" y "450 kcal" de un texto y devuelve { hora, kcal, resto } ya limpio.
+function extraerHoraKcal(txt) {
+  let hora = '', kcal = 0, resto = txt;
 
-- Nombre: Desayuno, Media mañana, Almuerzo, Merienda, Cena (o los que tenga mi plan)
-- Hora: en formato 24h, ej. 08:00
-- Detalle: qué como exactamente, CON CANTIDADES (gramos, unidades, tazas...). Nada de
-  "algo de arroz" o "proteína a elección" — quiero las cantidades tal cual las puso el
-  nutricionista para mí, comida por comida.
-- Kcal: solo el número de calorías aproximadas de esa comida
+  const mHora = resto.match(/\b(\d{1,2}:\d{2})\b/);
+  if (mHora) { hora = mHora[1]; resto = resto.replace(mHora[0], ' '); }
 
-Ejemplo de cómo quiero la respuesta:
-Desayuno | 08:00 | 2 huevos revueltos, 1 tostada integral con aguacate, café solo | 420
-Almuerzo | 14:00 | 150 g de pollo a la plancha, 200 g de arroz integral, ensalada | 650
+  // "450 kcal" / "450 cal" / "450 calorías"
+  let mKcal = resto.match(/(\d{2,4})\s*(?:kcal|cal\b|calor[ií]as?)/i);
+  if (mKcal) { kcal = parseInt(mKcal[1], 10); resto = resto.replace(mKcal[0], ' '); }
+  else {
+    // un número suelto al final de la línea también cuenta como kcal
+    const mFin = resto.match(/[|\-–—:·,]\s*(\d{2,4})\s*$/);
+    if (mFin) { kcal = parseInt(mFin[1], 10); resto = resto.slice(0, mFin.index); }
+  }
 
-No escribas nada más, solo esas líneas. Aquí está mi plan (te lo pego o adjunto):
-`;
+  resto = resto
+    .replace(/\(\s*\)/g, ' ')              // paréntesis que quedaron vacíos, ej. la hora
+    .replace(/\s*,\s*(?=,)/g, '')          // comas duplicadas: ", ," -> ","
+    .replace(/^[\s:|\-–—,.]+/, '')         // separadores sueltos al principio
+    .replace(/[\s:|\-–—,.]+$/, '')         // separadores sueltos al final
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return { hora, kcal, resto };
+}
 
-// Intenta leer líneas "Nombre | Hora | Detalle | Kcal". Tolera espacios de más,
-// que falte la hora o el kcal, y separadores raros como " - " en vez de "|".
-function parsearMinutaIA(texto) {
-  const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+// Detecta si una línea empieza por el nombre de una comida. Devuelve { nombre, resto } o null.
+function cabeceraDeComida(linea) {
+  const limpia = linea.replace(/^[\s\-*•–·]+/, '').replace(/^\d+[.)]\s*/, '').trim();
+  const norm = sinTildes(limpia);
+  for (const [clave, bonito] of COMIDAS_CONOCIDAS) {
+    if (norm === clave || norm.startsWith(clave + ' ') || norm.startsWith(clave + ':') ||
+        norm.startsWith(clave + ' (') || norm.startsWith(clave + '(') ||
+        norm.startsWith(clave + ' -') || norm.startsWith(clave + ',')) {
+      return { nombre: bonito, resto: limpia.slice(clave.length) };
+    }
+  }
+  return null;
+}
+
+// Formato con barras: Nombre | Hora | Detalle | Kcal (tolera que falte hora o kcal).
+function parsearBarras(texto) {
   const comidas = [];
-  for (const linea of lineas) {
-    const partes = (linea.includes('|') ? linea.split('|') : linea.split(' - ')).map(p => p.trim());
+  for (const linea of texto.split('\n').map(l => l.trim()).filter(Boolean)) {
+    if (!linea.includes('|')) continue;
+    const partes = linea.split('|').map(p => p.trim());
     if (partes.length < 2) continue;
 
-    // el último trozo, si es un número, es el kcal
     let kcal = 0;
-    if (/^\d+(\.\d+)?$/.test(partes[partes.length - 1].replace(/[^\d.]/g, '')) &&
-        /\d/.test(partes[partes.length - 1])) {
+    const ult = partes[partes.length - 1];
+    if (/^\d{2,4}$/.test(ult.replace(/[^\d]/g, '')) && /\d/.test(ult)) {
       kcal = parseInt(partes.pop().replace(/[^\d]/g, ''), 10) || 0;
     }
-
     const [nombre, segundo, ...resto] = partes;
-    if (!nombre || /^(nombre|comida)$/i.test(nombre)) continue; // se coló la cabecera
+    if (!nombre || /^(nombre|comida|hora|detalle)$/i.test(nombre)) continue;
 
     const esHora = /^\d{1,2}:\d{2}$/.test(segundo || '');
     const hora = esHora ? segundo : '';
-    const detalle = (esHora ? resto.join(' | ') : [segundo, ...resto].join(' | ')).trim();
-
+    const detalle = (esHora ? resto.join(', ') : [segundo, ...resto].join(', '))
+      .replace(/\s{2,}/g, ' ').trim();
     comidas.push({ id: S.uid(), nombre, hora, detalle, kcal });
   }
   return comidas;
 }
 
+// Formato natural: cabecera de comida + alimentos en la misma línea o en las siguientes.
+function parsearNatural(texto) {
+  const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+  const comidas = [];
+  let actual = null;
+
+  const cerrar = () => {
+    if (!actual) return;
+    const { hora, kcal, resto } = extraerHoraKcal(actual.buffer);
+    comidas.push({ id: S.uid(), nombre: actual.nombre, hora, kcal, detalle: resto });
+    actual = null;
+  };
+
+  for (const linea of lineas) {
+    const cab = cabeceraDeComida(linea);
+    if (cab) {
+      cerrar();
+      actual = { nombre: cab.nombre, buffer: cab.resto };
+    } else if (actual) {
+      actual.buffer += (actual.buffer ? ', ' : '') + linea;
+    }
+  }
+  cerrar();
+  return comidas.filter(c => c.detalle || c.kcal);
+}
+
+// Prueba primero barras; si no saca nada, prueba el formato natural.
+function parsearMinuta(texto) {
+  const conBarras = parsearBarras(texto);
+  if (conBarras.length) return conBarras;
+  return parsearNatural(texto);
+}
+
+const PROMPT_IA = `Tengo la minuta de mi nutricionista en un PDF (o foto) y quiero pasarla a texto simple.
+Es MI plan personal. Escribe UNA línea por comida, sin numerar y sin texto de más, así:
+
+Nombre | Hora | Qué como (con cantidades) | Kcal
+
+Ejemplo:
+Desayuno | 08:00 | 2 huevos revueltos, 1 tostada integral con aguacate, café solo | 420
+Almuerzo | 14:00 | 150 g de pollo a la plancha, 200 g de arroz integral, ensalada | 650
+
+Respeta las cantidades tal cual (gramos, tazas, unidades). Aquí está mi minuta:
+`;
+
 function sheetImportarIA(rerender) {
   const p = S.perfil();
-  abrirSheet('Importar minuta con IA', `
+  abrirSheet('Cargar mi minuta', `
     <div class="stack">
       <p class="small muted" style="margin:0">
-        Pásale tu PDF a cualquier IA (ChatGPT, Claude, Gemini…) con estas instrucciones,
-        y pega aquí lo que te responda. Así no guardamos el PDF, solo el texto ya resumido.
+        Pega aquí la minuta que te dio tu nutricionista. La app la recuerda y desde entonces te
+        muestra en limpio qué puedes comer cada día. No guardamos el PDF, solo el texto.
       </p>
-      <p class="tiny dim" style="margin:0">
-        Esto es para <b>tu</b> minuta, la de ${esc(p.nombre)}. ${S.otroPerfil() ? esc(S.otroPerfil().nombre) + ' hace lo mismo desde su perfil' : 'Cada persona la importa desde su propio perfil'},
-        con su propio plan — nadie pisa la comida de nadie.
-      </p>
-      <button class="btn ghost full sm" id="iaCopiar">Copiar instrucciones para la IA</button>
       <div class="field">
-        <label class="label">Pega aquí la respuesta de la IA</label>
+        <label class="label">Tu minuta</label>
         <textarea class="input" id="iaTexto" style="min-height:150px"
-          placeholder="Desayuno | 08:00 | 2 huevos, tostada integral, café | 420
-Almuerzo | 14:00 | Pollo, arroz integral, ensalada | 650
-…"></textarea>
+          placeholder="Puedes pegarla tal cual, por ejemplo:
+
+Desayuno 08:00
+2 huevos revueltos, 1 tostada integral con aguacate, café — 420 kcal
+
+Almuerzo 14:00
+150 g de pollo a la plancha, 200 g de arroz integral, ensalada — 650 kcal"></textarea>
       </div>
       <div id="iaPrev"></div>
-      <button class="btn pri full" id="iaImportar" disabled>Revisa el texto para importar</button>
-      ${p.comidas.length ? `<p class="tiny dim center" style="margin:0">
-        Esto reemplaza las ${p.comidas.length} comidas que ya tienes en la minuta.</p>` : ''}
+      <button class="btn pri full" id="iaImportar" disabled>Pega tu minuta arriba</button>
+
+      <details style="margin-top:2px">
+        <summary class="small" style="cursor:pointer;color:var(--tx-2)">
+          &#128247; ¿Tu minuta es un PDF o una foto?
+        </summary>
+        <div class="stack" style="margin-top:9px">
+          <p class="tiny dim" style="margin:0">
+            Pásasela a cualquier IA gratis (ChatGPT, Gemini, Copilot…) junto con estas
+            instrucciones y pega aquí arriba lo que te devuelva.
+          </p>
+          <button class="btn ghost full sm" id="iaCopiar">Copiar instrucciones para la IA</button>
+        </div>
+      </details>
+
+      <p class="tiny dim" style="margin:0">
+        Es la minuta de <b>${esc(p.nombre)}</b>.
+        ${S.otroPerfil() ? esc(S.otroPerfil().nombre) + ' carga la suya desde su propio perfil' : 'Cada persona carga la suya en su perfil'}.
+      </p>
     </div>`, (b) => {
     const ta = b.querySelector('#iaTexto');
     const prev = b.querySelector('#iaPrev');
@@ -220,39 +324,46 @@ Almuerzo | 14:00 | Pollo, arroz integral, ensalada | 650
 
     let parseadas = [];
     ta.oninput = () => {
-      parseadas = parsearMinutaIA(ta.value);
+      parseadas = parsearMinuta(ta.value);
       if (!parseadas.length) {
         prev.innerHTML = ta.value.trim()
-          ? '<p class="tiny" style="color:var(--w);margin:0">No reconozco ese formato. Revisa que cada línea tenga Nombre | Hora | Detalle | Kcal.</p>'
+          ? `<p class="tiny" style="color:var(--w);margin:0">
+              No logro reconocer las comidas. Prueba a que cada comida empiece por su nombre
+              (Desayuno, Almuerzo, Cena…) con los alimentos al lado o debajo.</p>`
           : '';
         btnOk.disabled = true;
-        btnOk.textContent = 'Revisa el texto para importar';
+        btnOk.textContent = 'Pega tu minuta arriba';
         return;
       }
       prev.innerHTML = `
         <div class="card flat">
-          <div class="tiny dim" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">
-            Se importarán ${parseadas.length} comidas
+          <div class="tiny dim" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">
+            Vas a poder comer
           </div>
-          <div class="list" style="gap:5px">
-            ${parseadas.map(c => `<div class="tiny muted">
-              <b style="color:var(--tx)">${esc(c.nombre)}</b>${c.hora ? ' · ' + esc(c.hora) : ''}
-              ${c.kcal ? ' · ' + c.kcal + ' kcal' : ''}</div>`).join('')}
+          <div class="list" style="gap:9px">
+            ${parseadas.map(c => `
+              <div>
+                <div class="small" style="font-weight:650">
+                  ${esc(c.nombre)}${c.hora ? ` <span class="dim tiny">${esc(c.hora)}</span>` : ''}
+                  ${c.kcal ? ` <span class="dim tiny">· ${c.kcal} kcal</span>` : ''}
+                </div>
+                <div class="tiny muted">${c.detalle ? esc(c.detalle) : 'sin detalle'}</div>
+              </div>`).join('')}
           </div>
         </div>`;
       btnOk.disabled = false;
-      btnOk.textContent = `Importar ${parseadas.length} comidas`;
+      btnOk.textContent = `Guardar mi minuta (${parseadas.length} comidas)`;
     };
 
     btnOk.onclick = async () => {
       if (!parseadas.length) return;
       if (p.comidas.length && !await confirmar('Reemplazar minuta',
-        `Se borran las ${p.comidas.length} comidas actuales y se ponen las ${parseadas.length} nuevas.`,
+        `Ya tienes ${p.comidas.length} comidas guardadas. Se cambian por estas ${parseadas.length}.`,
         'Reemplazar', false)) return;
       p.comidas = parseadas;
       S.save();
       cerrarSheet();
-      toast(`Minuta importada: ${parseadas.length} comidas`);
+      toast('Minuta guardada — ya te muestro qué comer');
       rerender();
     };
   });
@@ -362,6 +473,131 @@ function sheetOpciones(c, rerender) {
     });
   };
   pintar();
+}
+
+// ------------------------------------------------------------------ opciones de TODA la minuta, de una vez
+//
+// Lo que pidió Alonso: en vez de preguntarle al nutri por WhatsApp cada vez, la app arma un
+// texto con la minuta entera y le pide a una IA gratis varias opciones por comida. Se pegan
+// una sola vez y quedan guardadas como alternativas de cada comida — para siempre.
+
+function promptOpcionesMinuta(comidas, n = 3) {
+  const minuta = comidas.map(c =>
+    `${c.nombre}${c.hora ? ` (${c.hora})` : ''}: ${c.detalle || '—'}${c.kcal ? ` — ${c.kcal} kcal` : ''}`
+  ).join('\n');
+  return `Esta es la minuta que me dio mi nutricionista:
+
+${minuta}
+
+Para CADA comida dame ${n} opciones distintas que pueda comer en su lugar, con las MISMAS
+calorías aproximadas y un equilibrio nutricional parecido. Que sean realistas y fáciles.
+
+Respóndeme EXACTAMENTE con este formato y nada más: el nombre de la comida en su propia línea,
+y debajo cada opción en una línea que empiece con "- " y termine con "| kcal".
+
+Ejemplo:
+Desayuno
+- 3 claras revueltas y avena con fruta | 450
+- yogur griego con granola y miel | 450
+- tortilla de 2 huevos con pan integral | 450
+
+Ahora hazlo con mis comidas de arriba.`;
+}
+
+// Lee "Comida / - opción | kcal" y las asocia a las comidas reales de la minuta.
+function parsearOpcionesMinuta(texto, comidas) {
+  const res = comidas.map(c => ({ comida: c, opciones: [] }));
+  const buscarComida = (norm) => res.find(r =>
+    norm === sinTildes(r.comida.nombre) || norm.startsWith(sinTildes(r.comida.nombre)));
+
+  let actual = null;
+  for (const raw of texto.split('\n')) {
+    const linea = raw.trim();
+    if (!linea) continue;
+
+    const esOpcion = /^[\-*•·]/.test(linea) || linea.includes('|');
+    if (!esOpcion) {
+      const limpio = linea.replace(/^\d+[.)]\s*/, '').replace(/:$/, '').trim();
+      const hit = buscarComida(sinTildes(limpio));
+      if (hit) { actual = hit; continue; }
+    }
+    if (!actual) continue;
+
+    const t = linea.replace(/^[\s\-*•·]+/, '').replace(/^\d+[.)]\s*/, '').trim();
+    if (!t) continue;
+    const { kcal, resto } = extraerHoraKcal(t);
+    if (resto) actual.opciones.push({ detalle: resto, kcal });
+  }
+  return res.filter(r => r.opciones.length);
+}
+
+function sheetOpcionesMinuta(rerender) {
+  const p = S.perfil();
+  if (!p.comidas.length) { toast('Primero carga tu minuta'); return; }
+  const prompt = promptOpcionesMinuta(p.comidas);
+
+  abrirSheet('Opciones de comida', `
+    <div class="stack">
+      <p class="small muted" style="margin:0">
+        Copia este texto y pégalo en cualquier IA gratis (ChatGPT, Gemini, Copilot…). Te dará
+        varias opciones para cada comida de tu minuta. Traes la respuesta aquí y quedan guardadas:
+        así ya no preguntas al nutri cada vez que no sabes qué comer.
+      </p>
+      <button class="btn blue full" id="omCopiar">&#128203; Copiar el texto para la IA</button>
+      <div class="field">
+        <label class="label">Pega aquí la respuesta de la IA</label>
+        <textarea class="input" id="omTexto" style="min-height:150px"
+          placeholder="Desayuno
+- 3 claras y avena con fruta | 450
+- yogur griego con granola | 450
+
+Almuerzo
+- ..."></textarea>
+      </div>
+      <div id="omPrev"></div>
+      <button class="btn pri full" id="omGuardar" disabled>Pega la respuesta arriba</button>
+    </div>`, (b) => {
+    b.querySelector('#omCopiar').onclick = async () => {
+      try { await navigator.clipboard.writeText(prompt); toast('Copiado — pégalo en tu IA'); }
+      catch (e) { toast('Tu navegador no deja copiar aquí; selecciona el texto a mano'); }
+    };
+
+    let res = [];
+    b.querySelector('#omTexto').oninput = (e) => {
+      res = parsearOpcionesMinuta(e.target.value, p.comidas);
+      const total = res.reduce((t, r) => t + r.opciones.length, 0);
+      const prev = b.querySelector('#omPrev');
+      const btn = b.querySelector('#omGuardar');
+      if (!total) {
+        prev.innerHTML = e.target.value.trim()
+          ? `<p class="tiny" style="color:var(--w);margin:0">
+              No reconozco opciones. Pon cada comida en una línea (Desayuno, Almuerzo…) y sus
+              opciones debajo, empezando con "-".</p>` : '';
+        btn.disabled = true; btn.textContent = 'Pega la respuesta arriba';
+        return;
+      }
+      prev.innerHTML = `
+        <div class="card flat"><div class="list" style="gap:11px">
+          ${res.map(r => `
+            <div>
+              <div class="small" style="font-weight:650">
+                ${esc(r.comida.nombre)} <span class="dim tiny">· ${r.opciones.length} opciones</span>
+              </div>
+              ${r.opciones.map(o => `<div class="tiny muted">• ${esc(o.detalle)}${o.kcal ? ` · ${o.kcal} kcal` : ''}</div>`).join('')}
+            </div>`).join('')}
+        </div></div>`;
+      btn.disabled = false; btn.textContent = `Guardar ${total} opciones`;
+    };
+
+    b.querySelector('#omGuardar').onclick = () => {
+      if (!res.length) return;
+      res.forEach(r => { r.comida.alternativas = r.opciones; });
+      S.save();
+      cerrarSheet();
+      toast('Opciones guardadas para cada comida');
+      rerender();
+    };
+  });
 }
 
 // ------------------------------------------------------------------ minuta

@@ -1,7 +1,7 @@
 // sw.js — caché para que la app abra sin conexión.
 // Sube CACHE cada vez que cambies archivos y el móvil recogerá la versión nueva.
 
-const CACHE = 'pique-v1';
+const CACHE = 'pique-v2';
 
 const ARCHIVOS = [
   './',
@@ -25,12 +25,18 @@ const ARCHIVOS = [
 ];
 
 self.addEventListener('install', (e) => {
+  // Ojo: NO llamamos skipWaiting aquí a propósito. El worker nuevo queda "esperando"
+  // hasta que la app muestre el banner y el usuario toque "Actualizar" (mensaje de abajo).
   e.waitUntil(
     caches.open(CACHE)
       // addAll falla entero si un archivo falta; así toleramos ausencias
       .then(c => Promise.allSettled(ARCHIVOS.map(f => c.add(f))))
-      .then(() => self.skipWaiting())
   );
+});
+
+// La app pide activar la versión nueva cuando el usuario toca el banner.
+self.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {

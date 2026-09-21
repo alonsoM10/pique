@@ -263,11 +263,49 @@ function iniciar() {
   navigator.storage?.persist?.().catch(() => {});
 }
 
-// Service worker: permite abrirla sin conexión.
+// Service worker: permite abrirla sin conexión y avisa cuando hay versión nueva.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      // Si ya había una versión nueva esperando de una sesión anterior, avisa.
+      if (reg.waiting && navigator.serviceWorker.controller) bannerActualizar(reg.waiting);
+
+      reg.addEventListener('updatefound', () => {
+        const nuevo = reg.installing;
+        if (!nuevo) return;
+        nuevo.addEventListener('statechange', () => {
+          // "installed" + ya hay un controller = es una actualización, no la 1ª instalación.
+          if (nuevo.state === 'installed' && navigator.serviceWorker.controller) bannerActualizar(nuevo);
+        });
+      });
+
+      // Buscar versión nueva cada vez que la app vuelve al primer plano.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    }).catch(() => {});
+
+    // Cuando el worker nuevo toma el control, recargar una sola vez para estrenar la versión.
+    let recargando = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recargando) return;
+      recargando = true;
+      location.reload();
+    });
   });
+}
+
+function bannerActualizar(worker) {
+  if (document.getElementById('bannerUpd')) return;
+  const b = document.createElement('div');
+  b.id = 'bannerUpd';
+  b.innerHTML = `<span>&#10024; Hay una versión nueva de Pique</span>
+    <button id="updOk">Actualizar</button>`;
+  document.body.appendChild(b);
+  b.querySelector('#updOk').onclick = () => {
+    b.querySelector('#updOk').textContent = 'Actualizando…';
+    worker.postMessage({ type: 'skipWaiting' });
+  };
 }
 
 document.addEventListener('DOMContentLoaded', iniciar);
