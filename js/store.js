@@ -106,6 +106,7 @@ const estadoInicial = () => {
     perfiles: [a, c, v, j],
     perfilActivo: a.id,
     creado: todayISO(),
+    geminiKey: '',   // clave gratis de Google AI Studio; vive solo en este móvil
   };
 };
 
@@ -143,6 +144,11 @@ export function save() {
 export const onChange = (f) => { oyentes.add(f); return () => oyentes.delete(f); };
 
 export const state = () => load();
+
+// Clave de la API de Gemini (para la foto del plato). Por dispositivo, no por perfil.
+export const geminiKey = () => load().geminiKey || '';
+export function setGeminiKey(k) { load().geminiKey = (k || '').trim(); save(); }
+
 export const perfil = () => {
   const s = load();
   return s.perfiles.find(p => p.id === s.perfilActivo) || s.perfiles[0];

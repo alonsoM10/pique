@@ -1,15 +1,15 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=4';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=4';
-import * as Onb from './onboarding.js?v=4';
-import * as Hoy from './view-hoy.js?v=4';
-import * as Entreno from './view-entreno.js?v=4';
-import * as Comida from './view-comida.js?v=4';
-import * as Progreso from './view-progreso.js?v=4';
-import * as Pique from './view-pique.js?v=4';
-import * as Ayuda from './view-ayuda.js?v=4';
-import * as Exp from './exportar.js?v=4';
+import * as S from './store.js?v=5';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=5';
+import * as Onb from './onboarding.js?v=5';
+import * as Hoy from './view-hoy.js?v=5';
+import * as Entreno from './view-entreno.js?v=5';
+import * as Comida from './view-comida.js?v=5';
+import * as Progreso from './view-progreso.js?v=5';
+import * as Pique from './view-pique.js?v=5';
+import * as Ayuda from './view-ayuda.js?v=5';
+import * as Exp from './exportar.js?v=5';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -203,6 +203,21 @@ function sheetAjustes() {
       <button class="btn ghost full sm" id="ajRehacer">Rehacer el cuestionario inicial</button>
       <button class="btn ghost full sm" id="ajKcal">Cambiar calorías objetivo a mano</button>
 
+      <div class="sec-title" style="margin-left:0">Foto del plato (IA)</div>
+      <p class="tiny dim" style="margin:0">
+        Para estimar calorías con una foto usamos Gemini. Saca tu clave gratis en
+        <b>aistudio.google.com/apikey</b> (con tu cuenta de Google) y pégala aquí.
+        Se guarda solo en este móvil.
+      </p>
+      <div class="field">
+        <label class="label">Tu clave de Gemini</label>
+        <input class="input" id="ajGemKey" value="${esc(S.geminiKey())}" placeholder="AIza..." autocomplete="off">
+      </div>
+      <div class="grid2">
+        <button class="btn sm" id="ajGemGuardar">Guardar clave</button>
+        <button class="btn ghost sm" id="ajGemProbar">Probar</button>
+      </div>
+
       <div class="sec-title" style="margin-left:0">Ayuda</div>
       <button class="btn ghost full sm" id="ajGuia">Guía de ejercicios y conceptos</button>
 
@@ -233,6 +248,25 @@ function sheetAjustes() {
         valor: p.kcalObjetivo || '', placeholder: '1800',
       });
       if (v) { p.kcalObjetivo = Number(v); p.kcalFuente = 'nutricionista'; S.save(); toast('Guardado'); pintar(); }
+    };
+
+    b.querySelector('#ajGemGuardar').onclick = () => {
+      S.setGeminiKey(b.querySelector('#ajGemKey').value);
+      toast('Clave guardada en este móvil');
+    };
+    b.querySelector('#ajGemProbar').onclick = async () => {
+      S.setGeminiKey(b.querySelector('#ajGemKey').value);
+      const btn = b.querySelector('#ajGemProbar');
+      btn.textContent = 'Probando…'; btn.disabled = true;
+      try {
+        const Gem = await import('./gemini.js?v=5');
+        await Gem.probarClave();
+        toast('¡Clave correcta! Ya puedes usar la foto del plato');
+      } catch (e) {
+        toast(e.message || 'No pude validar la clave');
+      } finally {
+        btn.textContent = 'Probar'; btn.disabled = false;
+      }
     };
 
     b.querySelector('#ajGuia').onclick = () => { cerrarSheet(); ir('ayuda'); };

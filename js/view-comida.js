@@ -1,8 +1,8 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=4';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=4';
+import * as S from './store.js?v=5';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=5';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -49,6 +49,8 @@ export function render() {
       <button class="btn blue" id="btnScan">&#9635; Escanear</button>
       <button class="btn" id="btnBuscar">&#128269; Buscar</button>
     </div>
+    <button class="btn full sm" id="btnFoto">&#128247; Foto del plato (IA)</button>
+    <input type="file" id="fotoPlato" accept="image/*" capture="environment" hidden>
 
     <div class="sec-title">Minuta de hoy</div>
     <div class="list">
@@ -129,8 +131,106 @@ export function mount(root, ir, rerender) {
 
   root.querySelector('#btnScan').onclick = () => sheetEscaner(rerender);
   root.querySelector('#btnBuscar').onclick = () => sheetBuscar(rerender);
+
+  const inputFoto = root.querySelector('#fotoPlato');
+  root.querySelector('#btnFoto').onclick = () => {
+    if (!S.geminiKey()) {
+      return sheetFotoSinClave();
+    }
+    inputFoto.value = '';
+    inputFoto.click();
+  };
+  inputFoto.onchange = () => {
+    const f = inputFoto.files && inputFoto.files[0];
+    if (f) sheetFotoPlato(f, rerender);
+  };
   root.querySelector('#importarIA').onclick = () => sheetImportarIA(rerender);
   root.querySelector('#opcionesMinuta')?.addEventListener('click', () => sheetOpcionesMinuta(rerender));
+}
+
+// ------------------------------------------------------------------ foto del plato (IA)
+
+function sheetFotoSinClave() {
+  abrirSheet('Foto del plato', `
+    <div class="stack">
+      <p class="small muted" style="margin:0">
+        Para estimar las calorías con una foto necesitas tu clave gratis de Gemini
+        (Google AI Studio). Se pone una sola vez y se guarda solo en este móvil.
+      </p>
+      <ol class="small muted" style="margin:0;padding-left:20px;line-height:1.7">
+        <li>Entra a <b>aistudio.google.com/apikey</b> con tu cuenta de Google.</li>
+        <li>Toca <b>Crear clave de API</b> y cópiala.</li>
+        <li>Pégala en <b>Ajustes → Foto del plato</b> y toca Guardar.</li>
+      </ol>
+      <button class="btn pri full" id="fscOk">Entendido</button>
+    </div>`, (b) => {
+    b.querySelector('#fscOk').onclick = () => cerrarSheet();
+  });
+}
+
+function sheetFotoPlato(file, rerender) {
+  abrirSheet('Foto del plato', `
+    <div class="stack">
+      <div id="fpEstado" class="center" style="padding:18px 0">
+        <div class="small muted">Analizando la foto con Gemini…</div>
+        <div class="tiny dim" style="margin-top:6px">Puede tardar unos segundos</div>
+      </div>
+    </div>`, async (b) => {
+    const estado = b.querySelector('#fpEstado');
+    let dato;
+    try {
+      const Gem = await import('./gemini.js?v=5');
+      const base64 = await Gem.comprimirImagen(file);
+      dato = await Gem.analizarPlato(base64);
+    } catch (e) {
+      estado.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude analizar la foto')}</div>
+        <button class="btn ghost full sm" id="fpCerrar" style="margin-top:12px">Cerrar</button>`;
+      b.querySelector('#fpCerrar').onclick = () => cerrarSheet();
+      return;
+    }
+
+    if (!dato.kcal && /no es comida/i.test(dato.nombre)) {
+      estado.innerHTML = `<div class="small muted">No parece comida. Prueba con otra foto.</div>
+        <button class="btn ghost full sm" id="fpCerrar" style="margin-top:12px">Cerrar</button>`;
+      b.querySelector('#fpCerrar').onclick = () => cerrarSheet();
+      return;
+    }
+
+    // Resultado editable antes de registrar.
+    estado.outerHTML = `
+      <div class="stack">
+        <p class="tiny dim" style="margin:0">Estimación de Gemini. Ajústala si hace falta y guárdala.</p>
+        <div class="field"><label class="label">Qué es</label>
+          <input class="input" id="fpN" value="${esc(dato.nombre)}"></div>
+        <div class="grid2">
+          <div class="field"><label class="label">Kcal</label>
+            <input class="input num" id="fpK" type="number" inputmode="numeric" value="${dato.kcal}"></div>
+          <div class="field"><label class="label">Proteína (g)</label>
+            <input class="input num" id="fpP" type="number" inputmode="numeric" value="${dato.prot}"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label class="label">Carbos (g)</label>
+            <input class="input num" id="fpC" type="number" inputmode="numeric" value="${dato.carb}"></div>
+          <div class="field"><label class="label">Grasa (g)</label>
+            <input class="input num" id="fpG" type="number" inputmode="numeric" value="${dato.gras}"></div>
+        </div>
+        <button class="btn pri full" id="fpGuardar">Registrar en hoy</button>
+      </div>`;
+
+    b.querySelector('#fpGuardar').onclick = () => {
+      S.registrarAlimento({
+        nombre: b.querySelector('#fpN').value.trim() || 'Plato',
+        gramos: null,
+        kcal: Number(b.querySelector('#fpK').value) || 0,
+        prot: Number(b.querySelector('#fpP').value) || 0,
+        carb: Number(b.querySelector('#fpC').value) || 0,
+        gras: Number(b.querySelector('#fpG').value) || 0,
+      });
+      cerrarSheet();
+      toast('Plato registrado');
+      rerender();
+    };
+  });
 }
 
 // ------------------------------------------------------------------ cargar minuta
