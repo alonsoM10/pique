@@ -100,7 +100,7 @@ function renderDuelo(a, b, s) {
         <div class="row" style="justify-content:center;gap:18px;margin-top:11px">
           <div class="center" style="flex:1">
             <div style="width:46px;height:46px;border-radius:99px;margin:0 auto 7px;display:grid;place-items:center;
-              background:${a.color};color:#07130c;font-weight:800;font-size:19px">${esc(a.nombre[0])}</div>
+              background:${a.color};color:#07130c;font-weight:800;font-size:19px">${esc(S.avatar(a))}</div>
             <div class="small" style="font-weight:650">${esc(a.nombre)}</div>
           </div>
           <div class="center" style="flex:none">
@@ -110,7 +110,7 @@ function renderDuelo(a, b, s) {
           </div>
           <div class="center" style="flex:1">
             <div style="width:46px;height:46px;border-radius:99px;margin:0 auto 7px;display:grid;place-items:center;
-              background:${b.color};color:#06182b;font-weight:800;font-size:19px">${esc(b.nombre[0])}</div>
+              background:${b.color};color:#06182b;font-weight:800;font-size:19px">${esc(S.avatar(b))}</div>
             <div class="small" style="font-weight:650">${esc(b.nombre)}</div>
           </div>
         </div>
@@ -190,7 +190,7 @@ function renderRanking(s) {
               ${i < 3 ? medalla[i] : `<b class="dim">${i + 1}</b>`}
             </span>
             <span style="width:36px;height:36px;border-radius:99px;display:grid;place-items:center;flex:none;
-              background:${p.color};color:#07130c;font-weight:800">${esc(p.nombre[0].toUpperCase())}</span>
+              background:${p.color};color:#07130c;font-weight:800">${esc(S.avatar(p))}</span>
             <span style="flex:1;min-width:0;font-weight:650">${esc(p.nombre)}</span>
             <span style="font-weight:800;font-size:17px;font-variant-numeric:tabular-nums">${puntos.get(p.id)}</span>
           </div>`).join('')}

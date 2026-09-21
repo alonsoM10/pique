@@ -57,6 +57,7 @@ const perfilNuevo = (nombre, color) => ({
   id: uid(),
   nombre,
   color,
+  emoji: '',             // avatar opcional; si está vacío se usa la inicial
   // --- datos personales (onboarding)
   onboarding: false,
   nacimiento: null,      // 'YYYY-MM-DD' o edad como número
@@ -93,9 +94,15 @@ const perfilNuevo = (nombre, color) => ({
 const estadoInicial = () => {
   const a = perfilNuevo('Alonso', '#4ade80');
   const c = perfilNuevo('Cristóbal', '#60a5fa');
+  const v = perfilNuevo('Vicente', '#f472b6');
+  const j = perfilNuevo('Julio', '#fbbf24');
+  a.emoji = '💪';
+  c.emoji = '🔥';
+  v.emoji = '👱‍♀️';   // la cara de rubia, como pidió Alonso
+  j.emoji = '😎';
   return {
     version: 1,
-    perfiles: [a, c],
+    perfiles: [a, c, v, j],
     perfilActivo: a.id,
     creado: todayISO(),
   };
@@ -149,15 +156,19 @@ export const cambiarPerfil = (id) => { load().perfilActivo = id; save(); };
 // un grupo de gym, la familia, quien sea. No hay límite.
 const PALETA = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24', '#a78bfa', '#fb923c', '#2dd4bf', '#f87171'];
 
-export function crearPerfil(nombre) {
+export function crearPerfil(nombre, emoji = '') {
   const s = load();
   const color = PALETA[s.perfiles.length % PALETA.length];
   const p = perfilNuevo(String(nombre).trim() || 'Nuevo', color);
+  p.emoji = emoji || '';
   s.perfiles.push(p);
   s.perfilActivo = p.id;
   save();
   return p;
 }
+
+// Lo que se muestra en el círculo del avatar: el emoji si lo eligió, si no la inicial.
+export const avatar = (p) => (p && p.emoji) ? p.emoji : ((p?.nombre?.[0] || '?').toUpperCase());
 
 export function eliminarPerfil(id) {
   const s = load();

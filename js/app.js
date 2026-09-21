@@ -64,7 +64,7 @@ function pintar() {
 function pintarPerfil() {
   const p = S.perfil();
   $('#whoName').textContent = p.nombre;
-  $('#whoAvatar').textContent = (p.nombre[0] || '?').toUpperCase();
+  $('#whoAvatar').textContent = S.avatar(p);
   $('#whoAvatar').style.background = p.color;
   $('#whoAvatar').style.color = p.color === '#60a5fa' ? '#06182b' : '#08120d';
 }
@@ -81,12 +81,13 @@ function sheetPerfiles() {
             <button data-p="${p.id}" style="flex:1;min-width:0;display:flex;align-items:center;gap:11px;
               background:none;border:0;padding:0;text-align:left;cursor:pointer">
               <span style="width:32px;height:32px;border-radius:99px;display:grid;place-items:center;flex:none;
-                background:${p.color};color:#07130c;font-weight:800">${esc((p.nombre[0] || '?').toUpperCase())}</span>
+                background:${p.color};color:#07130c;font-weight:800">${esc(S.avatar(p))}</span>
               <span style="flex:1;min-width:0">
                 <span class="item-t" style="display:block">${esc(p.nombre)}</span>
                 <span class="item-s">${p.onboarding ? `${p.sesiones.length} entrenos · ${S.racha(p)} d de racha` : 'sin configurar'}</span>
               </span>
             </button>
+            <button class="btn ghost sm" data-editar="${p.id}" aria-label="Editar ${esc(p.nombre)}">&#9998;</button>
             ${s.perfiles.length > 1 ? `<button class="btn ghost sm" data-quitar="${p.id}">&#10005;</button>` : ''}
           </div>`).join('')}
       </div>
@@ -118,17 +119,61 @@ function sheetPerfiles() {
         enOnboarding = false;
         pintar();
       });
+      b.querySelectorAll('[data-editar]').forEach(x => x.onclick = (e) => {
+        e.stopPropagation();
+        sheetEditarPersona(s.perfiles.find(p => p.id === x.dataset.editar));
+      });
     };
     enlazar();
 
-    b.querySelector('#nuevaPersona').onclick = async () => {
-      const nombre = await pedir({
-        titulo: 'Nueva persona', label: '¿Cómo se llama?', placeholder: 'Nombre', ok: 'Añadir',
-      });
-      if (!nombre) return;
-      S.crearPerfil(nombre);
-      cerrarSheet();
-      arrancarOnboarding();
+    b.querySelector('#nuevaPersona').onclick = () => sheetEditarPersona(null);
+  });
+}
+
+// Emojis disponibles para el avatar (tú puedes elegir otro cualquiera desde el teclado).
+const EMOJIS_AVATAR = ['💪', '🔥', '😎', '👱‍♀️', '🦁', '🐺', '🐉', '⚡', '🚀', '🏆', '🥇', '🦾', '🧔', '👑', '🎯', '🐻'];
+
+function sheetEditarPersona(perfil) {
+  const esNueva = !perfil;
+  let emoji = perfil ? (perfil.emoji || '') : '';
+
+  abrirSheet(esNueva ? 'Nueva persona' : `Editar ${perfil.nombre}`, `
+    <div class="stack">
+      <div class="field">
+        <label class="label">Nombre</label>
+        <input class="input" id="pnNombre" value="${esc(perfil ? perfil.nombre : '')}" placeholder="Nombre">
+      </div>
+      <div class="field">
+        <label class="label">Avatar</label>
+        <div class="chips" id="pnEmojis">
+          <button class="chip ${!emoji ? 'on' : ''}" data-emoji="" style="font-weight:800">Aa</button>
+          ${EMOJIS_AVATAR.map(e => `<button class="chip ${emoji === e ? 'on' : ''}" data-emoji="${e}"
+            style="font-size:18px">${e}</button>`).join('')}
+        </div>
+        <p class="tiny dim" style="margin:6px 0 0">"Aa" usa la inicial del nombre.</p>
+      </div>
+      <button class="btn pri full" id="pnOk">${esNueva ? 'Añadir' : 'Guardar'}</button>
+    </div>`, (b) => {
+    b.querySelectorAll('[data-emoji]').forEach(x => x.onclick = () => {
+      emoji = x.dataset.emoji;
+      b.querySelectorAll('[data-emoji]').forEach(y => y.classList.toggle('on', y === x));
+    });
+
+    b.querySelector('#pnOk').onclick = () => {
+      const nombre = b.querySelector('#pnNombre').value.trim();
+      if (!nombre) return toast('Ponle un nombre');
+      if (esNueva) {
+        S.crearPerfil(nombre, emoji);
+        cerrarSheet();
+        arrancarOnboarding();
+      } else {
+        perfil.nombre = nombre;
+        perfil.emoji = emoji;
+        S.save();
+        cerrarSheet();
+        pintar();
+        sheetPerfiles();
+      }
     };
   });
 }
