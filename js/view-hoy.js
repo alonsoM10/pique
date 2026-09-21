@@ -1,7 +1,7 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js';
+import * as S from './store.js?v=3';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=3';
 
 export function render() {
   const p = S.perfil();

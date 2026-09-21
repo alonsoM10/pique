@@ -1,7 +1,7 @@
 // view-entreno.js — editor de rutinas y sesión de entreno en vivo.
 
-import * as S from './store.js';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, vibrar, mmss } from './ui.js';
+import * as S from './store.js?v=3';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, vibrar, mmss } from './ui.js?v=3';
 
 // Sesión en curso (viva sólo mientras la app está abierta; se persiste al terminar).
 let sesion = null;
@@ -257,13 +257,13 @@ export function mount(root, ir, rerender) {
   root.querySelector('#importarRutinaIA')?.addEventListener('click', () => sheetImportarRutinaIA(rerender));
 
   root.querySelector('#editarNombre')?.addEventListener('click', async () => {
-    const { pedir } = await import('./ui.js');
+    const { pedir } = await import('./ui.js?v=3');
     const v = await pedir({ titulo: 'Nombre de la rutina', label: 'Nombre', valor: r.nombre });
     if (v) { r.nombre = v; S.save(); rerender(); }
   });
 
   root.querySelector('#nuevoDia')?.addEventListener('click', async () => {
-    const { pedir } = await import('./ui.js');
+    const { pedir } = await import('./ui.js?v=3');
     const v = await pedir({
       titulo: 'Nuevo día', label: 'Nombre del día',
       placeholder: 'Torso A, Pierna, Push…', ok: 'Crear',
@@ -497,7 +497,7 @@ function sheetEditarDia(diaId, rerender) {
         });
       });
       b.querySelector('#renDia').onclick = async () => {
-        const { pedir } = await import('./ui.js');
+        const { pedir } = await import('./ui.js?v=3');
         const v = await pedir({ titulo: 'Renombrar día', label: 'Nombre', valor: d.nombre });
         if (v) { d.nombre = v; S.save(); pintar(); rerender(); }
       };
