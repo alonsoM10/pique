@@ -1,15 +1,15 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=3';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=3';
-import * as Onb from './onboarding.js?v=3';
-import * as Hoy from './view-hoy.js?v=3';
-import * as Entreno from './view-entreno.js?v=3';
-import * as Comida from './view-comida.js?v=3';
-import * as Progreso from './view-progreso.js?v=3';
-import * as Pique from './view-pique.js?v=3';
-import * as Ayuda from './view-ayuda.js?v=3';
-import * as Exp from './exportar.js?v=3';
+import * as S from './store.js?v=4';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=4';
+import * as Onb from './onboarding.js?v=4';
+import * as Hoy from './view-hoy.js?v=4';
+import * as Entreno from './view-entreno.js?v=4';
+import * as Comida from './view-comida.js?v=4';
+import * as Progreso from './view-progreso.js?v=4';
+import * as Pique from './view-pique.js?v=4';
+import * as Ayuda from './view-ayuda.js?v=4';
+import * as Exp from './exportar.js?v=4';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },

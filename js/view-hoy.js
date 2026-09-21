@@ -1,7 +1,7 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js?v=3';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=3';
+import * as S from './store.js?v=4';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=4';
 
 export function render() {
   const p = S.perfil();
@@ -15,6 +15,8 @@ export function render() {
   const hechas = S.comidasHechas(hoy, p);
   const totalComidas = p.comidas.length;
   const tieneRutina = !!S.rutinaActiva(p);
+  const creatinaHoy = S.tomoCreatina(hoy, p);
+  const rc = S.rachaCreatina(p);
 
   const dif = pesos.length > 1 ? pesos[pesos.length - 1].kg - pesos[0].kg : null;
 
@@ -118,6 +120,26 @@ export function render() {
       </button>
     </div>
 
+    <!-- CREATINA -->
+    <div class="card" style="${creatinaHoy ? 'border-color:#245840;background:var(--a-dim)' : ''}">
+      <div class="row" style="gap:13px;align-items:center">
+        <div style="font-size:26px">${creatinaHoy ? '&#10003;' : '&#128137;'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="item-t" style="${creatinaHoy ? 'color:var(--a)' : ''}">
+            ${creatinaHoy ? 'Creatina tomada' : '¿Tomaste tu creatina?'}
+          </div>
+          <div class="item-s">
+            ${rc > 0
+              ? `Racha de <b style="color:var(--a)">${rc} día${rc === 1 ? '' : 's'}</b> seguidos`
+              : 'Márcala cada día para no olvidarla'}
+          </div>
+        </div>
+        <button class="btn ${creatinaHoy ? 'ghost' : 'pri'} sm" id="btnCreatina" style="flex:none">
+          ${creatinaHoy ? 'Deshacer' : 'Marcar'}
+        </button>
+      </div>
+    </div>
+
     <!-- SEMANA -->
     <div class="card">
       <div class="card-hd">
@@ -146,12 +168,19 @@ export function render() {
   </div>`;
 }
 
-export function mount(root, ir) {
+export function mount(root, ir, rerender) {
   root.querySelectorAll('[data-go]').forEach(b => {
     b.onclick = () => ir(b.dataset.go);
   });
   const bp = root.querySelector('#btnPeso');
-  if (bp) bp.onclick = () => sheetPeso();
+  if (bp) bp.onclick = () => sheetPeso(rerender);
+
+  const bc = root.querySelector('#btnCreatina');
+  if (bc) bc.onclick = () => {
+    S.marcarCreatina();
+    if (S.tomoCreatina()) toast('Creatina marcada 💪');
+    rerender?.();
+  };
 }
 
 export function sheetPeso(despues) {

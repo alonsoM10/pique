@@ -89,6 +89,7 @@ const perfilNuevo = (nombre, color) => ({
   comidas: comidasPorDefecto(),
   marcadas: {},   // { 'YYYY-MM-DD': { comidaId: true } }
   registroComida: [], // { id, fecha, nombre, kcal, prot, carb, gras, gramos, codigo }
+  creatina: {},   // { 'YYYY-MM-DD': true } — días que se tomó la creatina
 });
 
 const estadoInicial = () => {
@@ -458,6 +459,31 @@ export function marcarComida(comidaId, fecha = todayISO()) {
 
 export const comidasHechas = (fecha = todayISO(), p = perfil()) =>
   Object.keys(p.marcadas[fecha] || {}).length;
+
+// ---------------------------------------------------------------- creatina
+// Hábito diario con racha, para no olvidarla. A diferencia del gym, aquí no hay
+// "días de descanso": la creatina se toma todos los días.
+
+export const tomoCreatina = (fecha = todayISO(), p = perfil()) => !!(p.creatina && p.creatina[fecha]);
+
+export function marcarCreatina(fecha = todayISO()) {
+  const p = perfil();
+  p.creatina = p.creatina || {};
+  if (p.creatina[fecha]) delete p.creatina[fecha];
+  else p.creatina[fecha] = true;
+  save();
+}
+
+export function rachaCreatina(p = perfil()) {
+  const dias = p.creatina || {};
+  let n = 0;
+  let cur = todayISO();
+  // si hoy aún no la marca, la racha sigue viva desde ayer
+  if (!dias[cur]) cur = addDays(cur, -1);
+  let guarda = 0;
+  while (guarda++ < 400 && dias[cur]) { n++; cur = addDays(cur, -1); }
+  return n;
+}
 
 export function registrarAlimento(a) {
   const p = perfil();
