@@ -1,15 +1,15 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=6';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=6';
-import * as Onb from './onboarding.js?v=6';
-import * as Hoy from './view-hoy.js?v=6';
-import * as Entreno from './view-entreno.js?v=6';
-import * as Comida from './view-comida.js?v=6';
-import * as Progreso from './view-progreso.js?v=6';
-import * as Pique from './view-pique.js?v=6';
-import * as Ayuda from './view-ayuda.js?v=6';
-import * as Exp from './exportar.js?v=6';
+import * as S from './store.js?v=7';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=7';
+import * as Onb from './onboarding.js?v=7';
+import * as Hoy from './view-hoy.js?v=7';
+import * as Entreno from './view-entreno.js?v=7';
+import * as Comida from './view-comida.js?v=7';
+import * as Progreso from './view-progreso.js?v=7';
+import * as Pique from './view-pique.js?v=7';
+import * as Ayuda from './view-ayuda.js?v=7';
+import * as Exp from './exportar.js?v=7';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -205,18 +205,33 @@ function sheetAjustes() {
 
       <div class="sec-title" style="margin-left:0">Foto del plato (IA)</div>
       <p class="tiny dim" style="margin:0">
-        Para estimar calorías con una foto usamos Gemini. Saca tu clave gratis en
-        <b>aistudio.google.com/apikey</b> (con tu cuenta de Google) y pégala aquí.
-        Se guarda solo en este móvil.
+        Estima las calorías con una foto. Recomendado: un <b>Worker de Cloudflare</b>
+        (open source, gratis, sin exponer claves). Pega aquí la URL que te dé al desplegarlo.
       </p>
       <div class="field">
-        <label class="label">Tu clave de Gemini</label>
-        <input class="input" id="ajGemKey" value="${esc(S.geminiKey())}" placeholder="AIza..." autocomplete="off">
+        <label class="label">URL del Worker de Cloudflare</label>
+        <input class="input" id="ajWorker" value="${esc(S.workerUrl())}" placeholder="https://pique-plato.tucuenta.workers.dev" autocomplete="off">
       </div>
       <div class="grid2">
-        <button class="btn sm" id="ajGemGuardar">Guardar clave</button>
-        <button class="btn ghost sm" id="ajGemProbar">Probar</button>
+        <button class="btn sm" id="ajWorkerGuardar">Guardar Worker</button>
+        <button class="btn ghost sm" id="ajWorkerProbar">Probar</button>
       </div>
+
+      <details style="margin-top:2px">
+        <summary class="tiny dim" style="cursor:pointer">Alternativa: usar Gemini con tu clave</summary>
+        <div class="stack" style="margin-top:9px">
+          <p class="tiny dim" style="margin:0">
+            Clave gratis en <b>aistudio.google.com/apikey</b>. Se usa solo si no hay Worker.
+          </p>
+          <div class="field">
+            <input class="input" id="ajGemKey" value="${esc(S.geminiKey())}" placeholder="AIza..." autocomplete="off">
+          </div>
+          <div class="grid2">
+            <button class="btn sm" id="ajGemGuardar">Guardar clave</button>
+            <button class="btn ghost sm" id="ajGemProbar">Probar</button>
+          </div>
+        </div>
+      </details>
 
       <div class="sec-title" style="margin-left:0">Ayuda</div>
       <button class="btn ghost full sm" id="ajGuia">Guía de ejercicios y conceptos</button>
@@ -250,6 +265,25 @@ function sheetAjustes() {
       if (v) { p.kcalObjetivo = Number(v); p.kcalFuente = 'nutricionista'; S.save(); toast('Guardado'); pintar(); }
     };
 
+    b.querySelector('#ajWorkerGuardar').onclick = () => {
+      S.setWorkerUrl(b.querySelector('#ajWorker').value);
+      toast('Worker guardado en este móvil');
+    };
+    b.querySelector('#ajWorkerProbar').onclick = async () => {
+      S.setWorkerUrl(b.querySelector('#ajWorker').value);
+      const btn = b.querySelector('#ajWorkerProbar');
+      btn.textContent = 'Probando…'; btn.disabled = true;
+      try {
+        const Gem = await import('./gemini.js?v=7');
+        await Gem.probarWorker();
+        toast('¡Worker funciona! Ya puedes usar la foto del plato');
+      } catch (e) {
+        toast(e.message || 'El Worker no respondió');
+      } finally {
+        btn.textContent = 'Probar'; btn.disabled = false;
+      }
+    };
+
     b.querySelector('#ajGemGuardar').onclick = () => {
       S.setGeminiKey(b.querySelector('#ajGemKey').value);
       toast('Clave guardada en este móvil');
@@ -259,7 +293,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=6');
+        const Gem = await import('./gemini.js?v=7');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {

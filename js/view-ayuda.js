@@ -2,7 +2,7 @@
 // Escrita en español y disponible sin conexión. Para lo que no esté,
 // se ofrece un enlace de búsqueda fuera (la API de búsqueda de wger ya no existe).
 
-import { esc, abrirSheet, cerrarSheet } from './ui.js?v=6';
+import { esc, abrirSheet, cerrarSheet } from './ui.js?v=7';
 
 const BUSCAR_FUERA = 'https://duckduckgo.com/?q=t%C3%A9cnica+ejercicio+';
 

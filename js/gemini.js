@@ -1,7 +1,7 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=6';
+import * as S from './store.js?v=7';
 
 const MODELO = 'gemini-2.0-flash';
 const URL = (key) =>
@@ -52,10 +52,61 @@ async function llamar(key, partes) {
   return txt;
 }
 
-// Manda la foto y pide un JSON con la estimación del plato.
+// Extrae el JSON de la estimación de un texto (venga de Gemini o del Worker).
+function leerJson(txt) {
+  let dato;
+  try { dato = JSON.parse(txt); }
+  catch (e) {
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('No entendí la respuesta de la IA');
+    dato = JSON.parse(m[0]);
+  }
+  return {
+    nombre: String(dato.nombre || 'Plato').slice(0, 80),
+    kcal: Math.max(0, Math.round(Number(dato.kcal) || 0)),
+    prot: Math.max(0, Math.round(Number(dato.prot) || 0)),
+    carb: Math.max(0, Math.round(Number(dato.carb) || 0)),
+    gras: Math.max(0, Math.round(Number(dato.gras) || 0)),
+  };
+}
+
+// Punto de entrada: usa el Worker de Cloudflare si está configurado; si no, Gemini.
 export async function analizarPlato(base64) {
+  if (S.workerUrl()) return analizarConWorker(base64);
+  return analizarConGemini(base64);
+}
+
+// --- Cloudflare Worker (modelo open source, la clave vive en el servidor) ---
+async function analizarConWorker(base64) {
+  const url = S.workerUrl();
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: base64 }),
+  });
+  if (!r.ok) {
+    let msg = `Error ${r.status} del Worker`;
+    try { const j = await r.json(); msg = j.error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return leerJson(j.text || '');
+}
+
+export async function probarWorker() {
+  const url = S.workerUrl();
+  if (!url) throw new Error('Pega primero la URL del Worker');
+  // pixel jpeg mínimo, solo para ver si responde
+  const px = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAAv/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8AH//Z';
+  await analizarConWorker(px);
+  return true;
+}
+
+// --- Gemini (alternativa directa desde el navegador) ---
+async function analizarConGemini(base64) {
   const key = S.geminiKey();
-  if (!key) throw new Error('Falta tu clave de Gemini (ponla en Ajustes)');
+  if (!key) throw new Error('Configura la foto del plato en Ajustes');
 
   const prompt = `Eres nutricionista. Mira la foto de comida y estima lo que hay en el plato.
 Devuelve SOLO un JSON con esta forma exacta:

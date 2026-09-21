@@ -1,7 +1,7 @@
 // onboarding.js — asistente de primera vez. 6 pantallas, todo saltable.
 
-import * as S from './store.js?v=6';
-import { esc, num, toast } from './ui.js?v=6';
+import * as S from './store.js?v=7';
+import { esc, num, toast } from './ui.js?v=7';
 
 let paso = 0;
 let d = {};      // borrador de respuestas

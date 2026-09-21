@@ -1,8 +1,8 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=6';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=6';
+import * as S from './store.js?v=7';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=7';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -134,7 +134,7 @@ export function mount(root, ir, rerender) {
 
   const inputFoto = root.querySelector('#fotoPlato');
   root.querySelector('#btnFoto').onclick = () => {
-    if (!S.geminiKey()) {
+    if (!S.iaFotoLista()) {
       return sheetFotoSinClave();
     }
     inputFoto.value = '';
@@ -154,15 +154,18 @@ function sheetFotoSinClave() {
   abrirSheet('Foto del plato', `
     <div class="stack">
       <p class="small muted" style="margin:0">
-        Para estimar las calorías con una foto necesitas tu clave gratis de Gemini
-        (Google AI Studio). Se pone una sola vez y se guarda solo en este móvil.
+        Falta configurar la IA que analiza la foto. Ve a <b>Ajustes → Foto del plato</b>
+        y pon una de estas dos (se guarda solo en este móvil):
       </p>
-      <ol class="small muted" style="margin:0;padding-left:20px;line-height:1.7">
-        <li>Entra a <b>aistudio.google.com/apikey</b> con tu cuenta de Google.</li>
-        <li>Toca <b>Crear clave de API</b> y cópiala.</li>
-        <li>Pégala en <b>Ajustes → Foto del plato</b> y toca Guardar.</li>
-      </ol>
-      <button class="btn pri full" id="fscOk">Entendido</button>
+      <div class="card flat">
+        <div class="item-t" style="font-size:13.5px">Worker de Cloudflare (recomendado)</div>
+        <div class="item-s">Open source y gratis. Se despliega una vez y pegas la URL. La clave no se expone.</div>
+      </div>
+      <div class="card flat">
+        <div class="item-t" style="font-size:13.5px">O una clave de Gemini</div>
+        <div class="item-s">Gratis en aistudio.google.com/apikey. Más rápido de poner, pero es de Google.</div>
+      </div>
+      <button class="btn pri full" id="fscOk">Ir a Ajustes lo hago luego</button>
     </div>`, (b) => {
     b.querySelector('#fscOk').onclick = () => cerrarSheet();
   });
@@ -179,7 +182,7 @@ function sheetFotoPlato(file, rerender) {
     const estado = b.querySelector('#fpEstado');
     let dato;
     try {
-      const Gem = await import('./gemini.js?v=6');
+      const Gem = await import('./gemini.js?v=7');
       const base64 = await Gem.comprimirImagen(file);
       dato = await Gem.analizarPlato(base64);
     } catch (e) {

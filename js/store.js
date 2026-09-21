@@ -107,6 +107,7 @@ const estadoInicial = () => {
     perfilActivo: a.id,
     creado: todayISO(),
     geminiKey: '',   // clave gratis de Google AI Studio; vive solo en este móvil
+    workerUrl: '',   // URL del Worker de Cloudflare (open source); si está, se usa esta
   };
 };
 
@@ -145,9 +146,14 @@ export const onChange = (f) => { oyentes.add(f); return () => oyentes.delete(f);
 
 export const state = () => load();
 
-// Clave de la API de Gemini (para la foto del plato). Por dispositivo, no por perfil.
+// Foto del plato. Por dispositivo, no por perfil. Puede usar un Worker de Cloudflare
+// (open source, sin exponer clave) o, como alternativa, una clave de Gemini.
 export const geminiKey = () => load().geminiKey || '';
 export function setGeminiKey(k) { load().geminiKey = (k || '').trim(); save(); }
+export const workerUrl = () => load().workerUrl || '';
+export function setWorkerUrl(u) { load().workerUrl = (u || '').trim(); save(); }
+// ¿Está configurada alguna forma de analizar la foto?
+export const iaFotoLista = () => !!(load().workerUrl || load().geminiKey);
 
 export const perfil = () => {
   const s = load();
