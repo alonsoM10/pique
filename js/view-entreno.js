@@ -1,7 +1,7 @@
 // view-entreno.js — editor de rutinas y sesión de entreno en vivo.
 
-import * as S from './store.js?v=5';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, vibrar, mmss } from './ui.js?v=5';
+import * as S from './store.js?v=6';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, vibrar, mmss } from './ui.js?v=6';
 
 // Sesión en curso (viva sólo mientras la app está abierta; se persiste al terminar).
 let sesion = null;
@@ -257,13 +257,13 @@ export function mount(root, ir, rerender) {
   root.querySelector('#importarRutinaIA')?.addEventListener('click', () => sheetImportarRutinaIA(rerender));
 
   root.querySelector('#editarNombre')?.addEventListener('click', async () => {
-    const { pedir } = await import('./ui.js?v=5');
+    const { pedir } = await import('./ui.js?v=6');
     const v = await pedir({ titulo: 'Nombre de la rutina', label: 'Nombre', valor: r.nombre });
     if (v) { r.nombre = v; S.save(); rerender(); }
   });
 
   root.querySelector('#nuevoDia')?.addEventListener('click', async () => {
-    const { pedir } = await import('./ui.js?v=5');
+    const { pedir } = await import('./ui.js?v=6');
     const v = await pedir({
       titulo: 'Nuevo día', label: 'Nombre del día',
       placeholder: 'Torso A, Pierna, Push…', ok: 'Crear',
@@ -457,10 +457,12 @@ function sheetEditarDia(diaId, rerender) {
                   <div class="item-t" style="font-size:13.5px">${esc(e.nombre)}</div>
                   <div class="item-s">${e.series} × ${esc(e.reps)}${e.kg ? ` · ${num(e.kg, 1)} kg` : ''} · ${e.descanso}s</div>
                 </div>
-                <div class="row" style="gap:5px">
-                  <button class="btn ghost sm" data-up="${i}" ${i === 0 ? 'disabled' : ''}>&#9650;</button>
-                  <button class="btn ghost sm" data-ed="${i}">&#9998;</button>
-                  <button class="btn danger sm" data-rm="${i}">&#10005;</button>
+                <div class="row" style="gap:4px">
+                  <button class="btn ghost sm" data-up="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Subir">&#9650;</button>
+                  <button class="btn ghost sm" data-dn="${i}" ${i === d.ejercicios.length - 1 ? 'disabled' : ''} aria-label="Bajar">&#9660;</button>
+                  ${r.dias.length > 1 ? `<button class="btn ghost sm" data-mv="${i}" aria-label="Mover a otro día">&#8644;</button>` : ''}
+                  <button class="btn ghost sm" data-ed="${i}" aria-label="Editar">&#9998;</button>
+                  <button class="btn danger sm" data-rm="${i}" aria-label="Quitar">&#10005;</button>
                 </div>
               </div>
             </div>`).join('')}
@@ -485,6 +487,15 @@ function sheetEditarDia(diaId, rerender) {
         [d.ejercicios[i - 1], d.ejercicios[i]] = [d.ejercicios[i], d.ejercicios[i - 1]];
         S.save(); pintar(); rerender();
       });
+      b.querySelectorAll('[data-dn]').forEach(x => x.onclick = () => {
+        const i = Number(x.dataset.dn);
+        [d.ejercicios[i + 1], d.ejercicios[i]] = [d.ejercicios[i], d.ejercicios[i + 1]];
+        S.save(); pintar(); rerender();
+      });
+      b.querySelectorAll('[data-mv]').forEach(x => x.onclick = () => {
+        const i = Number(x.dataset.mv);
+        sheetMoverEjercicio(r, d, i, () => { pintar(); rerender(); });
+      });
       b.querySelectorAll('[data-ed]').forEach(x => x.onclick = () => {
         const i = Number(x.dataset.ed);
         sheetDatosEjercicio(d.ejercicios[i], (datos) => {
@@ -497,7 +508,7 @@ function sheetEditarDia(diaId, rerender) {
         });
       });
       b.querySelector('#renDia').onclick = async () => {
-        const { pedir } = await import('./ui.js?v=5');
+        const { pedir } = await import('./ui.js?v=6');
         const v = await pedir({ titulo: 'Renombrar día', label: 'Nombre', valor: d.nombre });
         if (v) { d.nombre = v; S.save(); pintar(); rerender(); }
       };
@@ -510,6 +521,38 @@ function sheetEditarDia(diaId, rerender) {
     });
   };
   pintar();
+}
+
+function sheetMoverEjercicio(r, origen, idx, alTerminar) {
+  const ej = origen.ejercicios[idx];
+  const otros = r.dias.filter(x => x.id !== origen.id);
+  abrirSheet(`Mover: ${ej.nombre}`, `
+    <div class="stack">
+      <p class="small muted" style="margin:0">¿A qué día lo mando?</p>
+      <div class="list">
+        ${otros.map(x => `<button class="item" data-dest="${x.id}" style="width:100%;text-align:left;cursor:pointer">
+          <span class="item-t" style="flex:1">${esc(x.nombre)}</span>
+          <span class="item-s">${x.ejercicios.length} ej.</span>
+        </button>`).join('')}
+      </div>
+      <button class="btn ghost full sm" id="mvNuevo">+ Mover a un día nuevo</button>
+    </div>`, (b) => {
+    const mover = (destDia) => {
+      origen.ejercicios.splice(idx, 1);
+      destDia.ejercicios.push(ej);
+      S.save(); cerrarSheet(); toast(`Movido a ${destDia.nombre}`); alTerminar();
+    };
+    b.querySelectorAll('[data-dest]').forEach(x => x.onclick = () =>
+      mover(r.dias.find(d => d.id === x.dataset.dest)));
+    b.querySelector('#mvNuevo').onclick = async () => {
+      const { pedir } = await import('./ui.js?v=6');
+      const nombre = await pedir({
+        titulo: 'Día nuevo', label: 'Nombre del día', placeholder: 'Pecho, Pierna…', ok: 'Crear y mover',
+      });
+      if (!nombre) return;
+      mover(S.crearDia(r.id, nombre));
+    };
+  });
 }
 
 function sheetElegirEjercicio(cb) {
@@ -624,51 +667,62 @@ function plantillaTorsoPierna() {
 const PROMPT_IA_RUTINA = `Quiero organizar mi rutina de gym en un formato simple para importarla en una app.
 Es MI rutina personal.
 
-Escribe una línea "Día: <nombre>" por cada día de entreno, y debajo, una línea por cada
-ejercicio de ese día así:
+MUY IMPORTANTE: separa los ejercicios por DÍA de entreno. No pongas todos en un mismo día.
+Cada día debe tener entre 4 y 8 ejercicios como máximo. Si mi rutina tiene un solo día muy
+largo, divídelo en varios días con sentido (por grupo muscular o por sesión).
+
+Escribe una línea "Día: <nombre>" por cada día, y debajo, una línea por cada ejercicio así:
 
 Ejercicio | Series | Reps | Descanso en segundos
 
-Deja una línea en blanco entre cada día. Ejemplo de cómo quiero la respuesta:
+Deja una línea en blanco entre cada día. Ejemplo:
 
-Día: Torso A
+Día: Pecho y tríceps
 Press banca | 4 | 8-10 | 90
-Remo con barra | 4 | 8-10 | 90
-Press militar | 3 | 10-12 | 75
+Press inclinado mancuernas | 3 | 10-12 | 75
+Fondos | 3 | 12 | 60
 
-Día: Pierna A
-Sentadilla | 4 | 8-10 | 120
-Peso muerto rumano | 3 | 10 | 90
+Día: Espalda y bíceps
+Dominadas | 4 | máximas | 90
+Remo con barra | 4 | 8-10 | 90
+Curl con barra | 3 | 12 | 60
 
 No escribas nada más, solo esas líneas. Esta es mi rutina (te la describo o pego lo que tengo):
 `;
 
 function parsearRutinaIA(texto) {
-  const bloques = texto.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  // Vamos línea a línea (no por bloques): así separamos los días aunque la IA no
+  // deje líneas en blanco entre ellos. Regla simple: las líneas de EJERCICIO llevan "|";
+  // cualquier otra línea es la cabecera de un día nuevo.
+  const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
   const dias = [];
-  for (const bloque of bloques) {
-    const lineas = bloque.split('\n').map(l => l.trim()).filter(Boolean);
-    if (!lineas.length) continue;
+  let actual = null;
 
-    const m = lineas[0].match(/^d[ií]a\s*\d*\s*[:\-|]?\s*(.+)$/i);
-    const nombreDia = m ? m[1].trim() : lineas[0].replace(/[:#*-]+$/, '').trim();
-    if (!nombreDia) continue;
+  const esCabeceraDia = (l) => /^(d[ií]a|day)\b/i.test(l);
 
-    const ejercicios = [];
-    for (const linea of lineas.slice(m ? 1 : 1)) {
-      const partes = (linea.includes('|') ? linea.split('|') : linea.split(' - ')).map(p => p.trim());
-      if (!partes[0] || /^ejercicio$/i.test(partes[0])) continue;
-      const [nombre, series, reps, descanso] = partes;
-      ejercicios.push({
-        nombre,
-        series: parseInt(series, 10) || 3,
-        reps: (reps || '10').trim(),
-        descanso: parseInt(descanso, 10) || 90,
-      });
+  for (const linea of lineas) {
+    if (!linea.includes('|') || esCabeceraDia(linea)) {
+      // nueva cabecera de día
+      const m = linea.match(/^(?:d[ií]a|day)\s*\d*\s*[:\-|]?\s*(.*)$/i);
+      let nombre = (m && m[1] ? m[1] : linea).replace(/^[#*\-\s]+/, '').replace(/[:#*\-\s]+$/, '').trim();
+      if (!nombre) nombre = 'Día ' + (dias.length + 1);
+      actual = { nombre, ejercicios: [] };
+      dias.push(actual);
+      continue;
     }
-    if (ejercicios.length) dias.push({ nombre: nombreDia, ejercicios });
+    // línea de ejercicio
+    if (!actual) { actual = { nombre: 'Día 1', ejercicios: [] }; dias.push(actual); }
+    const partes = linea.split('|').map(p => p.trim());
+    if (!partes[0] || /^ejercicio$/i.test(partes[0])) continue;
+    const [nombre, series, reps, descanso] = partes;
+    actual.ejercicios.push({
+      nombre,
+      series: parseInt(series, 10) || 3,
+      reps: (reps || '10').trim(),
+      descanso: parseInt(descanso, 10) || 90,
+    });
   }
-  return dias;
+  return dias.filter(d => d.ejercicios.length);
 }
 
 function sheetImportarRutinaIA(rerender) {

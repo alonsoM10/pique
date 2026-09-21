@@ -1,8 +1,8 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=5';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=5';
+import * as S from './store.js?v=6';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=6';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -179,7 +179,7 @@ function sheetFotoPlato(file, rerender) {
     const estado = b.querySelector('#fpEstado');
     let dato;
     try {
-      const Gem = await import('./gemini.js?v=5');
+      const Gem = await import('./gemini.js?v=6');
       const base64 = await Gem.comprimirImagen(file);
       dato = await Gem.analizarPlato(base64);
     } catch (e) {
