@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=14';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=14';
-import * as Onb from './onboarding.js?v=14';
-import * as Hoy from './view-hoy.js?v=14';
-import * as Entreno from './view-entreno.js?v=14';
-import * as Comida from './view-comida.js?v=14';
-import * as Progreso from './view-progreso.js?v=14';
-import * as Pique from './view-pique.js?v=14';
-import * as Ayuda from './view-ayuda.js?v=14';
-import * as Exp from './exportar.js?v=14';
-import * as Nube from './nube.js?v=14';
+import * as S from './store.js?v=15';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=15';
+import * as Onb from './onboarding.js?v=15';
+import * as Hoy from './view-hoy.js?v=15';
+import * as Entreno from './view-entreno.js?v=15';
+import * as Comida from './view-comida.js?v=15';
+import * as Progreso from './view-progreso.js?v=15';
+import * as Pique from './view-pique.js?v=15';
+import * as Ayuda from './view-ayuda.js?v=15';
+import * as Exp from './exportar.js?v=15';
+import * as Nube from './nube.js?v=15';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -332,30 +332,30 @@ function sheetAjustes() {
 
       <div class="sec-title" style="margin-left:0">Foto del plato (IA)</div>
       <p class="tiny dim" style="margin:0">
-        Estima las calorías con una foto. Recomendado: un <b>Worker de Cloudflare</b>
-        (open source, gratis, sin exponer claves). Pega aquí la URL que te dé al desplegarlo.
+        Le sacas una foto a tu plato y la IA estima las calorías. Necesitas una
+        <b>clave gratis de Gemini</b>: entra a <b>aistudio.google.com/apikey</b>, crea una y pégala aquí.
       </p>
       <div class="field">
-        <label class="label">URL del Worker de Cloudflare</label>
-        <input class="input" id="ajWorker" value="${esc(S.workerUrl())}" placeholder="https://pique-plato.tucuenta.workers.dev" autocomplete="off">
+        <label class="label">Clave de Gemini</label>
+        <input class="input" id="ajGemKey" value="${esc(S.geminiKey())}" placeholder="AIza..." autocomplete="off">
       </div>
       <div class="grid2">
-        <button class="btn sm" id="ajWorkerGuardar">Guardar Worker</button>
-        <button class="btn ghost sm" id="ajWorkerProbar">Probar</button>
+        <button class="btn sm" id="ajGemGuardar">Guardar clave</button>
+        <button class="btn ghost sm" id="ajGemProbar">Probar</button>
       </div>
 
       <details style="margin-top:2px">
-        <summary class="tiny dim" style="cursor:pointer">Alternativa: usar Gemini con tu clave</summary>
+        <summary class="tiny dim" style="cursor:pointer">Opción avanzada: Worker de Cloudflare (open source)</summary>
         <div class="stack" style="margin-top:9px">
           <p class="tiny dim" style="margin:0">
-            Clave gratis en <b>aistudio.google.com/apikey</b>. Se usa solo si no hay Worker.
+            Sin exponer claves, pero hay que desplegarlo. Si pones una URL aquí, se usa esta en vez de Gemini.
           </p>
           <div class="field">
-            <input class="input" id="ajGemKey" value="${esc(S.geminiKey())}" placeholder="AIza..." autocomplete="off">
+            <input class="input" id="ajWorker" value="${esc(S.workerUrl())}" placeholder="https://pique-plato.tucuenta.workers.dev" autocomplete="off">
           </div>
           <div class="grid2">
-            <button class="btn sm" id="ajGemGuardar">Guardar clave</button>
-            <button class="btn ghost sm" id="ajGemProbar">Probar</button>
+            <button class="btn sm" id="ajWorkerGuardar">Guardar Worker</button>
+            <button class="btn ghost sm" id="ajWorkerProbar">Probar</button>
           </div>
         </div>
       </details>
@@ -403,7 +403,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=14');
+        const Gem = await import('./gemini.js?v=15');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -422,7 +422,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=14');
+        const Gem = await import('./gemini.js?v=15');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
