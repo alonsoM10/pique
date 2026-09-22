@@ -1,7 +1,7 @@
 // sw.js — caché para que la app abra sin conexión.
 // Sube CACHE cada vez que cambies archivos y el móvil recogerá la versión nueva.
 
-const CACHE = 'pique-v8';
+const CACHE = 'pique-v9';
 
 const ARCHIVOS = [
   './',
@@ -10,6 +10,7 @@ const ARCHIVOS = [
   './css/app.css',
   './js/app.js',
   './js/gemini.js',
+  './js/nube.js',
   './js/store.js',
   './js/ui.js',
   './js/onboarding.js',

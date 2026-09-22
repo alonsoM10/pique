@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=8';
-import { esc, num, anillo } from './ui.js?v=8';
+import * as S from './store.js?v=9';
+import { esc, num, anillo } from './ui.js?v=9';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [
@@ -60,7 +60,7 @@ export function render() {
   // tú siempre estás; de los demás, solo los que no has ocultado
   const gente = s.perfiles.filter(p => p.id === activo.id || !ocultos.has(p.id));
 
-  const cabecera = selectorHtml(s, activo, ocultos) + (gente.length >= 2 ? actividadHtml(gente) : '');
+  const cabecera = grupoHtml() + selectorHtml(s, activo, ocultos) + (gente.length >= 2 ? actividadHtml(gente) : '');
 
   let cuerpo;
   if (gente.length < 2) cuerpo = renderSolo(activo);
@@ -76,6 +76,20 @@ export function mount(root, ir, rerender) {
     S.togglePiqueOculto(b.dataset.toggle);
     rerender();
   });
+}
+
+// Aviso para conectar con la nube: sin grupo no se ve a los demás de verdad.
+function grupoHtml() {
+  if (S.enGrupo()) return '';
+  return `
+    <div class="card" style="border-color:#1f4b6e;background:rgba(96,165,250,.08)">
+      <div class="item-t" style="color:var(--b)">Conéctate con tu grupo</div>
+      <div class="item-s" style="margin:4px 0 11px">
+        Escribe un código con tus amigos y verán en tiempo real lo que hace cada uno
+        (gym, comida). No tienes que crear a nadie: aparecen solos.
+      </div>
+      <button class="btn blue full sm" data-grupo="1">Unirme a un grupo</button>
+    </div>`;
 }
 
 // Chips para elegir a quién ver. La persona activa (tú) queda fija.

@@ -1,15 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=8';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=8';
-import * as Onb from './onboarding.js?v=8';
-import * as Hoy from './view-hoy.js?v=8';
-import * as Entreno from './view-entreno.js?v=8';
-import * as Comida from './view-comida.js?v=8';
-import * as Progreso from './view-progreso.js?v=8';
-import * as Pique from './view-pique.js?v=8';
-import * as Ayuda from './view-ayuda.js?v=8';
-import * as Exp from './exportar.js?v=8';
+import * as S from './store.js?v=9';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=9';
+import * as Onb from './onboarding.js?v=9';
+import * as Hoy from './view-hoy.js?v=9';
+import * as Entreno from './view-entreno.js?v=9';
+import * as Comida from './view-comida.js?v=9';
+import * as Progreso from './view-progreso.js?v=9';
+import * as Pique from './view-pique.js?v=9';
+import * as Ayuda from './view-ayuda.js?v=9';
+import * as Exp from './exportar.js?v=9';
+import * as Nube from './nube.js?v=9';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -56,6 +57,9 @@ function pintar() {
     e.stopPropagation();
     Ayuda.abrirEjercicio(b.dataset.guia);
   });
+
+  // Cualquier botón "unirme al grupo" abre la misma hoja.
+  $$('[data-grupo]', app).forEach(b => b.onclick = sheetGrupo);
 
   $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.route === ruta));
   pintarPerfil();
@@ -178,6 +182,114 @@ function sheetEditarPersona(perfil) {
   });
 }
 
+// ------------------------------------------------------------------ grupo (nube)
+//
+// Aquí cada uno entra a un grupo compartido: escribe un código (el mismo para todos,
+// se lo pasan por WhatsApp), dice quién es, y desde ese momento ve a los demás y ellos
+// a él. No hay que crear rivales a mano: aparecen solos.
+
+function sheetGrupo() {
+  const p = S.perfil();
+
+  if (S.enGrupo()) {
+    const yo = S.miPerfil();
+    abrirSheet('Tu grupo', `
+      <div class="stack">
+        <div class="card flat">
+          <div class="row-b"><span class="small muted">Código del grupo</span>
+            <b class="small">${esc(S.grupoCodigo())}</b></div>
+          <div class="divider"></div>
+          <div class="row-b"><span class="small muted">Eres</span>
+            <b class="small">${esc(S.avatar(yo))} ${esc(yo.nombre)}</b></div>
+        </div>
+        <p class="tiny dim" style="margin:0">
+          Todos los que escriban <b>${esc(S.grupoCodigo())}</b> se ven entre sí. Pásaselo a los
+          demás para que se sumen. Lo que hagas (gym, comida, creatina) les aparece a ellos.
+        </p>
+        <button class="btn ghost full sm" id="grProbar">Probar conexión</button>
+        <button class="btn danger full sm" id="grSalir">Salir del grupo</button>
+      </div>`, (b) => {
+      b.querySelector('#grProbar').onclick = async () => {
+        const btn = b.querySelector('#grProbar');
+        btn.textContent = 'Probando…'; btn.disabled = true;
+        try { await Nube.probar(); toast('¡Conectado! La sync funciona'); }
+        catch (e) { toast('No conecté con la nube. ¿Creaste la base de datos?'); }
+        finally { btn.textContent = 'Probar conexión'; btn.disabled = false; }
+      };
+      b.querySelector('#grSalir').onclick = async () => {
+        if (!await confirmar('Salir del grupo',
+          'Dejarás de ver a los demás y ellos a ti. Tus datos siguen en este móvil.', 'Salir')) return;
+        Nube.salir();
+        cerrarSheet();
+        pintar();
+      };
+    });
+    return;
+  }
+
+  let emoji = p.emoji || '';
+  abrirSheet('Unirme a un grupo', `
+    <div class="stack">
+      <p class="small muted" style="margin:0">
+        Escribe el <b>mismo código</b> que tus amigos (ej: <i>primos</i>) y di quién eres.
+        Desde ahí se ven todos y no tienes que crear a nadie a mano.
+      </p>
+      <div class="field">
+        <label class="label">Código del grupo</label>
+        <input class="input" id="grCodigo" placeholder="primos" autocomplete="off" autocapitalize="none">
+      </div>
+      <div class="field">
+        <label class="label">Tu nombre</label>
+        <input class="input" id="grNombre" value="${esc(p.nombre)}" placeholder="Tu nombre">
+      </div>
+      <div class="field">
+        <label class="label">Tu avatar</label>
+        <div class="chips" id="grEmojis">
+          <button class="chip ${!emoji ? 'on' : ''}" data-emoji="" style="font-weight:800">Aa</button>
+          ${EMOJIS_AVATAR.map(e => `<button class="chip ${emoji === e ? 'on' : ''}" data-emoji="${e}"
+            style="font-size:18px">${e}</button>`).join('')}
+        </div>
+      </div>
+      <p class="tiny dim" style="margin:0">
+        Al entrar, los perfiles de práctica de este móvil se quitan y aparecen las personas
+        reales del grupo.
+      </p>
+      <button class="btn pri full" id="grOk">Unirme al grupo</button>
+    </div>`, (b) => {
+    b.querySelectorAll('[data-emoji]').forEach(x => x.onclick = () => {
+      emoji = x.dataset.emoji;
+      b.querySelectorAll('[data-emoji]').forEach(y => y.classList.toggle('on', y === x));
+    });
+
+    b.querySelector('#grOk').onclick = async () => {
+      const codigo = b.querySelector('#grCodigo').value.trim();
+      const nombre = b.querySelector('#grNombre').value.trim();
+      if (!codigo) return toast('Escribe el código del grupo');
+      if (!nombre) return toast('Escribe tu nombre');
+
+      const btn = b.querySelector('#grOk');
+      btn.textContent = 'Conectando…'; btn.disabled = true;
+
+      // Fijo mi identidad en el perfil activo antes de subirlo.
+      const yo = S.perfil();
+      yo.nombre = nombre;
+      yo.emoji = emoji;
+      S.save();
+
+      try {
+        await Nube.unirse(codigo, () => { if (!enOnboarding) pintar(); });
+        cerrarSheet();
+        toast('¡Dentro del grupo! Ya se ven entre ustedes');
+        ruta = 'pique';
+        pintar();
+      } catch (e) {
+        btn.textContent = 'Unirme al grupo'; btn.disabled = false;
+        toast('No pude conectar. Revisa internet o que la base de datos esté creada.');
+      }
+    };
+  });
+}
+
 // ------------------------------------------------------------------ ajustes
 
 function sheetAjustes() {
@@ -202,6 +314,21 @@ function sheetAjustes() {
       </div>
       <button class="btn ghost full sm" id="ajRehacer">Rehacer el cuestionario inicial</button>
       <button class="btn ghost full sm" id="ajKcal">Cambiar calorías objetivo a mano</button>
+
+      <div class="sec-title" style="margin-left:0">Grupo (ver a los demás)</div>
+      ${S.enGrupo() ? `
+        <div class="card flat">
+          <div class="row-b"><span class="small muted">Grupo</span><b class="small">${esc(S.grupoCodigo())}</b></div>
+          <div class="divider"></div>
+          <div class="row-b"><span class="small muted">Eres</span><b class="small">${esc(S.avatar(S.miPerfil()))} ${esc(S.miPerfil().nombre)}</b></div>
+        </div>
+        <button class="btn ghost full sm" data-grupo="1">Ver / salir del grupo</button>
+      ` : `
+        <p class="tiny dim" style="margin:0">
+          Conéctate con tu grupo y verás lo que hacen los demás (gym, comida) y ellos lo tuyo.
+        </p>
+        <button class="btn blue full" data-grupo="1">Unirme a un grupo</button>
+      `}
 
       <div class="sec-title" style="margin-left:0">Foto del plato (IA)</div>
       <p class="tiny dim" style="margin:0">
@@ -255,6 +382,8 @@ function sheetAjustes() {
         Pique · datos de alimentos por Open Food Facts
       </p>
     </div>`, (b) => {
+    b.querySelectorAll('[data-grupo]').forEach(x => x.onclick = () => { cerrarSheet(); sheetGrupo(); });
+
     b.querySelector('#ajRehacer').onclick = () => { cerrarSheet(); arrancarOnboarding(); };
 
     b.querySelector('#ajKcal').onclick = async () => {
@@ -274,7 +403,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=8');
+        const Gem = await import('./gemini.js?v=9');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -293,7 +422,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=8');
+        const Gem = await import('./gemini.js?v=9');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -366,6 +495,9 @@ function iniciar() {
 
   if (!S.perfil().onboarding) arrancarOnboarding();
   else pintar();
+
+  // Si este teléfono ya está en un grupo, arranca la sincronización con la nube.
+  if (S.enGrupo()) Nube.iniciar(() => { if (!enOnboarding) pintar(); }).catch(() => {});
 
   setTimeout(() => {
     $('#splash').classList.add('gone');

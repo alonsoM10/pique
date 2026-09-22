@@ -109,8 +109,18 @@ const estadoInicial = () => {
     geminiKey: '',   // clave gratis de Google AI Studio; vive solo en este móvil
     workerUrl: '',   // URL del Worker de Cloudflare (open source); si está, se usa esta
     piqueOcultos: [], // ids de personas que NO quiero ver en el Pique
+    grupo: '',        // código de grupo compartido en la nube; vacío = sin sincronizar
+    miPerfilId: null, // quién soy YO en este teléfono (solo subo lo mío a la nube)
   };
 };
+
+// Rellena campos nuevos que falten en un perfil (viejo o traído de la nube),
+// para que las vistas nunca lean un campo undefined.
+function rellenarCampos(p) {
+  const base = perfilNuevo('x', '#fff');
+  for (const k of Object.keys(base)) if (p[k] === undefined) p[k] = base[k];
+  return p;
+}
 
 // ---------------------------------------------------------------- persistencia
 
@@ -127,10 +137,9 @@ export function load() {
     S = estadoInicial();
   }
   // migración defensiva: si faltan campos nuevos, rellenarlos
-  S.perfiles.forEach(p => {
-    const base = perfilNuevo('x', '#fff');
-    for (const k of Object.keys(base)) if (p[k] === undefined) p[k] = base[k];
-  });
+  S.perfiles.forEach(rellenarCampos);
+  if (S.grupo === undefined) S.grupo = '';
+  if (S.miPerfilId === undefined) S.miPerfilId = null;
   return S;
 }
 
@@ -164,6 +173,58 @@ export function togglePiqueOculto(id) {
   const i = s.piqueOcultos.indexOf(id);
   if (i >= 0) s.piqueOcultos.splice(i, 1); else s.piqueOcultos.push(id);
   save();
+}
+
+// ---------------------------------------------------------------- grupo (nube)
+// Cada teléfono es UNA persona ("yo") y sube solo lo suyo a un grupo compartido.
+// Los demás integrantes llegan de la nube: no hay que crear rivales a mano.
+
+export const grupoCodigo = () => (load().grupo || '');
+export const enGrupo = () => !!load().grupo;
+export const miPerfilId = () => load().miPerfilId || null;
+export const soyYo = (id) => id === load().miPerfilId;
+export const miPerfil = () => {
+  const s = load();
+  return s.perfiles.find(p => p.id === s.miPerfilId) || perfil();
+};
+
+// Entrar a un grupo: yo soy el perfil activo; se quitan los perfiles de práctica
+// (los demás aparecerán solos desde la nube).
+export function unirGrupo(codigo, yoId = null) {
+  const s = load();
+  s.grupo = String(codigo).trim().toLowerCase().replace(/\s+/g, '-');
+  s.miPerfilId = yoId || s.perfilActivo;
+  s.perfiles = s.perfiles.filter(p => p.id === s.miPerfilId);
+  s.perfilActivo = s.miPerfilId;
+  s.piqueOcultos = [];
+  save();
+}
+
+export function salirGrupo() {
+  const s = load();
+  s.grupo = '';
+  s.miPerfilId = null;
+  save();
+}
+
+// La nube trae la lista de todos: conservo lo MÍO (yo mando sobre mi perfil) y
+// reemplazo a los demás con lo que llega. El flag evita reenviar lo que acabo de bajar.
+let aplicandoNube = false;
+export const estaAplicandoNube = () => aplicandoNube;
+export function mergeCloudPerfiles(lista) {
+  const s = load();
+  aplicandoNube = true;
+  try {
+    const yo = s.perfiles.find(p => p.id === s.miPerfilId);
+    const otros = (lista || [])
+      .filter(p => p && p.id && p.id !== s.miPerfilId)
+      .map(rellenarCampos);
+    s.perfiles = [yo, ...otros].filter(Boolean);
+    if (!s.perfiles.find(p => p.id === s.perfilActivo)) s.perfilActivo = s.miPerfilId;
+    save();
+  } finally {
+    aplicandoNube = false;
+  }
 }
 
 export const perfil = () => {
