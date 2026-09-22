@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=12';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=12';
-import { buscarLocal } from './alimentos-cl.js?v=12';
+import * as S from './store.js?v=13';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=13';
+import { buscarLocal } from './alimentos-cl.js?v=13';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -209,7 +209,7 @@ function sheetFotoPlato(file, rerender) {
     const estado = b.querySelector('#fpEstado');
     let dato;
     try {
-      const Gem = await import('./gemini.js?v=12');
+      const Gem = await import('./gemini.js?v=13');
       const base64 = await Gem.comprimirImagen(file);
       dato = await Gem.analizarPlato(base64);
     } catch (e) {
@@ -772,27 +772,67 @@ function sheetEscaner(rerender) {
     <div class="stack">
       <div id="reader"><video id="vid" playsinline muted autoplay></video></div>
       <p class="tiny dim center" id="scanMsg" style="margin:0">Pidiendo permiso de cámara…</p>
+      <button class="btn blue full" id="scanFotoBtn">&#128247; ¿No lee? Toma una foto del código</button>
+      <input type="file" id="scanFoto" accept="image/*" capture="environment" hidden>
       <div class="divider"></div>
       <div class="field">
         <label class="label">O escribe el código de barras a mano</label>
         <div class="row">
-          <input class="input num" id="manIn" inputmode="numeric" placeholder="8412345678905" style="flex:1">
-          <button class="btn blue" id="manOk">Buscar</button>
+          <input class="input num" id="manIn" inputmode="numeric" placeholder="7804660620683" style="flex:1">
+          <button class="btn" id="manOk">Buscar</button>
         </div>
       </div>
     </div>`, (b) => {
     const msg = b.querySelector('#scanMsg');
+    const hallado = (codigo) => { vibrar([60, 40, 60]); pararCamara(); buscarPorCodigo(codigo, rerender); };
+
     b.querySelector('#manOk').onclick = () => {
       const v = b.querySelector('#manIn').value.trim();
       if (v) { pararCamara(); buscarPorCodigo(v, rerender); }
     };
-    arrancarCamara(b.querySelector('#vid'), msg, (codigo) => {
-      vibrar([60, 40, 60]);
-      pararCamara();
-      buscarPorCodigo(codigo, rerender);
-    });
+
+    // Plan B (el fiable en iPhone): tomar una foto del código y leerla de la imagen.
+    const foto = b.querySelector('#scanFoto');
+    b.querySelector('#scanFotoBtn').onclick = () => { pararCamara(); foto.value = ''; foto.click(); };
+    foto.onchange = () => {
+      const f = foto.files && foto.files[0];
+      if (f) decodarFoto(f, msg, hallado);
+    };
+
+    arrancarCamara(b.querySelector('#vid'), msg, hallado);
     alCerrarSheet(pararCamara);
   });
+}
+
+// Lee el código de barras de una FOTO (no del video en vivo). En iPhone es mucho más
+// fiable: la cámara nativa enfoca bien y el usuario encuadra el código con calma.
+async function decodarFoto(file, msg, onCodigo) {
+  msg.textContent = 'Leyendo la foto…';
+  msg.style.color = '';
+  try {
+    if (!window.ZXing) {
+      await cargarScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js');
+    }
+    const hints = new Map();
+    const F = window.ZXing.BarcodeFormat;
+    hints.set(window.ZXing.DecodeHintType.POSSIBLE_FORMATS,
+      [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF]);
+    hints.set(window.ZXing.DecodeHintType.TRY_HARDER, true);
+    const reader = new window.ZXing.BrowserMultiFormatReader(hints);
+    const url = URL.createObjectURL(file);
+    try {
+      const res = await reader.decodeFromImageUrl(url);
+      if (res && res.getText) return onCodigo(res.getText());
+      throw new Error('sin resultado');
+    } finally {
+      URL.revokeObjectURL(url);
+      try { reader.reset(); } catch (e) { /* noop */ }
+    }
+  } catch (e) {
+    console.error('foto codigo', e);
+    msg.innerHTML = 'No encontré el código en esa foto. Prueba otra bien <b>de frente</b>, con el código <b>plano</b> y buena luz — o escríbelo a mano abajo.';
+    msg.style.color = 'var(--w)';
+  }
 }
 
 async function arrancarCamara(video, msg, onCodigo) {
