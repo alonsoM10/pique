@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=10';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=10';
-import { buscarLocal } from './alimentos-cl.js?v=10';
+import * as S from './store.js?v=11';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=11';
+import { buscarLocal } from './alimentos-cl.js?v=11';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -50,10 +50,15 @@ export function render() {
       <button class="btn blue" id="btnScan">&#9635; Escanear</button>
       <button class="btn" id="btnBuscar">&#128269; Buscar</button>
     </div>
+    <button class="btn full sm" id="btnPlato">&#127859; Plato casero (varios ingredientes)</button>
     <button class="btn full sm" id="btnFoto">&#128247; Foto del plato (IA)</button>
     <input type="file" id="fotoPlato" accept="image/*" capture="environment" hidden>
 
-    <div class="sec-title">Minuta de hoy</div>
+    <div class="sec-title">Registrado hoy</div>
+    ${t.items.length ? gruposRegistrado(p, t.items) :
+      '<div class="list"><div class="empty"><span class="big">&#9635;</span>Escanea, busca o arma un plato casero</div></div>'}
+
+    <div class="sec-title" style="margin-top:22px">Minuta de hoy</div>
     <div class="list">
       ${p.comidas.map(c => `
         <div class="item ${marc[c.id] ? 'on' : ''}">
@@ -80,23 +85,43 @@ export function render() {
       <button class="btn ${p.comidas.length ? 'ghost' : 'pri'} sm" id="importarIA">&#128203; Cargar mi minuta</button>
     </div>
 
-    <div class="sec-title">Registrado hoy</div>
-    <div class="list">
-      ${t.items.length ? t.items.map(x => `
-        <div class="item">
-          <div style="flex:1;min-width:0">
-            <div class="item-t" style="font-size:13.5px">${esc(x.nombre)}</div>
-            <div class="item-s">
-              ${x.gramos ? `${num(x.gramos)} g · ` : ''}${num(x.kcal)} kcal ·
-              P${num(x.prot)} C${num(x.carb)} G${num(x.gras)}
-            </div>
-          </div>
-          <button class="btn danger sm" data-rmali="${x.id}">&#10005;</button>
-        </div>`).join('')
-        : '<div class="empty"><span class="big">&#9635;</span>Escanea un producto o búscalo por nombre</div>'}
-    </div>
-
   </div>`;
+}
+
+// Agrupa lo comido hoy por comida (Desayuno, Almuerzo, Cena…), con subtotal por grupo,
+// así puedes meter cosas en "Cena" y al final las ves juntas. Lo sin comida va a "Otros".
+function gruposRegistrado(p, items) {
+  const orden = p.comidas.map(c => c.nombre);
+  const grupos = new Map();
+  items.forEach(x => {
+    const k = x.comidaNombre || 'Otros';
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(x);
+  });
+  const clave = (k) => { const i = orden.indexOf(k); return i < 0 ? 999 : i; };
+  const ordenadas = [...grupos.entries()].sort((a, b) => clave(a[0]) - clave(b[0]));
+
+  const filaItem = (x) => `
+    <div class="item">
+      <div style="flex:1;min-width:0">
+        <div class="item-t" style="font-size:13.5px">${esc(x.nombre)}</div>
+        <div class="item-s">
+          ${x.gramos ? `${num(x.gramos)} g · ` : ''}${num(x.kcal)} kcal ·
+          P${num(x.prot)} C${num(x.carb)} G${num(x.gras)}
+        </div>
+      </div>
+      <button class="btn danger sm" data-rmali="${x.id}">&#10005;</button>
+    </div>`;
+
+  return ordenadas.map(([nombre, arr]) => {
+    const kcal = arr.reduce((s, x) => s + (Number(x.kcal) || 0), 0);
+    return `
+      <div class="row-b" style="margin:12px 2px 5px">
+        <span class="tiny dim" style="font-weight:700;letter-spacing:.05em;text-transform:uppercase">${esc(nombre)}</span>
+        <span class="tiny dim" style="font-weight:700">${num(kcal)} kcal</span>
+      </div>
+      <div class="list">${arr.map(filaItem).join('')}</div>`;
+  }).join('');
 }
 
 // ------------------------------------------------------------------ mount
@@ -132,6 +157,7 @@ export function mount(root, ir, rerender) {
 
   root.querySelector('#btnScan').onclick = () => sheetEscaner(rerender);
   root.querySelector('#btnBuscar').onclick = () => sheetBuscar(rerender);
+  root.querySelector('#btnPlato').onclick = () => sheetPlatoCasero(rerender);
 
   const inputFoto = root.querySelector('#fotoPlato');
   root.querySelector('#btnFoto').onclick = () => {
@@ -183,7 +209,7 @@ function sheetFotoPlato(file, rerender) {
     const estado = b.querySelector('#fpEstado');
     let dato;
     try {
-      const Gem = await import('./gemini.js?v=10');
+      const Gem = await import('./gemini.js?v=11');
       const base64 = await Gem.comprimirImagen(file);
       dato = await Gem.analizarPlato(base64);
     } catch (e) {
@@ -770,52 +796,49 @@ function sheetEscaner(rerender) {
 }
 
 async function arrancarCamara(video, msg, onCodigo) {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
-      audio: false,
-    });
-    video.srcObject = stream;
-    await video.play();
-    msg.textContent = 'Apunta al código de barras del producto';
-  } catch (e) {
-    msg.innerHTML = 'No se pudo abrir la cámara.<br>Comprueba los permisos en Ajustes &rsaquo; Safari, o escribe el código a mano.';
-    return;
-  }
+  const CONSTRAINTS = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false };
+  let usado = false;
+  const usar = (codigo) => { if (usado) return; usado = true; onCodigo(codigo); };
 
-  // 1) API nativa (Chrome Android): rápida y sin descargas.
+  // 1) API nativa BarcodeDetector (Chrome Android): rápida y sin descargas.
   if ('BarcodeDetector' in window) {
     try {
-      const det = new window.BarcodeDetector({
-        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'],
-      });
+      stream = await navigator.mediaDevices.getUserMedia(CONSTRAINTS);
+      video.srcObject = stream;
+      await video.play();
+      msg.textContent = 'Apunta al código de barras del producto';
+      const det = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] });
       const tick = async () => {
-        if (!stream) return;
+        if (!stream || usado) return;
         try {
           const cods = await det.detect(video);
-          if (cods.length) return onCodigo(cods[0].rawValue);
+          if (cods.length && cods[0].rawValue) return usar(cods[0].rawValue);
         } catch (e) { /* frame no listo */ }
         requestAnimationFrame(tick);
       };
       tick();
       return;
-    } catch (e) { /* cae al plan B */ }
+    } catch (e) { /* si falla, cae a ZXing */ }
   }
 
-  // 2) ZXing (Safari iOS y el resto).
+  // 2) ZXing (Safari iOS y el resto): que ZXing maneje la cámara, es más fiable.
   try {
     if (!window.ZXing) {
-      await cargarScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js');
+      await cargarScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js');
     }
     const hints = new Map();
     const F = window.ZXing.BarcodeFormat;
     hints.set(window.ZXing.DecodeHintType.POSSIBLE_FORMATS,
       [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128]);
-    lector = new window.ZXing.BrowserMultiFormatReader(hints, 300);
-    lector.decodeFromStream(stream, video, (res) => { if (res) onCodigo(res.getText()); });
+    hints.set(window.ZXing.DecodeHintType.TRY_HARDER, true);
+    lector = new window.ZXing.BrowserMultiFormatReader(hints, 200);
+    msg.textContent = 'Apunta al código de barras del producto';
+    await lector.decodeFromConstraints(CONSTRAINTS, video, (res, err) => {
+      if (res && res.getText) usar(res.getText());
+    });
   } catch (e) {
     console.error(e);
-    msg.textContent = 'El lector no cargó. Escribe el código a mano abajo.';
+    msg.innerHTML = 'No se pudo abrir la cámara o el lector.<br>Revisa permisos de cámara en tu navegador, o escribe el código a mano abajo.';
   }
 }
 
@@ -864,6 +887,174 @@ async function buscarPorCodigo(codigo, rerender) {
     cerrarSheet();
     toast('Sin conexión — inténtalo luego');
   }
+}
+
+// ------------------------------------------------------------------ ¿en qué comida?
+//
+// Al registrar algo, eliges a qué comida va (Desayuno, Almuerzo, Cena…). Por defecto
+// sugiere la comida más cercana a la hora actual. Luego "Registrado hoy" las agrupa.
+
+function comidaSugerida(p) {
+  const now = new Date();
+  const min = now.getHours() * 60 + now.getMinutes();
+  let best = null, bd = Infinity;
+  for (const c of p.comidas) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(c.hora || '');
+    if (!m) continue;
+    const cm = (+m[1]) * 60 + (+m[2]);
+    const d = Math.abs(cm - min);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best || p.comidas[0] || null;
+}
+
+function selectComida(p, selId = null) {
+  if (!p.comidas.length) return '';
+  const sug = selId || (comidaSugerida(p) && comidaSugerida(p).id);
+  return `
+    <div class="field">
+      <label class="label">¿En qué comida?</label>
+      <select class="input" id="pComida">
+        ${p.comidas.map(c => `<option value="${c.id}" ${c.id === sug ? 'selected' : ''}>${esc(c.nombre)}${c.hora ? ` (${esc(c.hora)})` : ''}</option>`).join('')}
+        <option value="__otro">Otro / sin comida</option>
+      </select>
+    </div>`;
+}
+
+function leerComidaSel(b, p) {
+  const sel = b.querySelector('#pComida');
+  if (!sel || sel.value === '__otro' || !sel.value) return { comidaId: '', comidaNombre: '' };
+  const c = p.comidas.find(x => x.id === sel.value);
+  return c ? { comidaId: c.id, comidaNombre: c.nombre } : { comidaId: '', comidaNombre: '' };
+}
+
+// ------------------------------------------------------------------ plato casero
+//
+// Escribes varios ingredientes con sus gramos y la app calcula las calorías sola con la
+// tabla chilena. Si algo no está en la tabla, hay un atajo para pedírselo a una IA (pegar
+// respuesta). Lo pediste para comida sin código de barras: feria, JUNAEB, comida de casa.
+
+function parsearIngredientes(texto) {
+  return texto.split(/[\n;,]+/).map(s => s.trim()).filter(Boolean).map(tr => {
+    const m = /(\d+(?:[.,]\d+)?)\s*(?:kg|g|gr|grs|gramos)?/i.exec(tr);
+    let gramos = m ? parseFloat(m[1].replace(',', '.')) : null;
+    if (m && /kg/i.test(m[0])) gramos *= 1000;
+    if (gramos != null) gramos = Math.round(gramos);
+    let nombre = m ? (tr.slice(0, m.index) + ' ' + tr.slice(m.index + m[0].length)) : tr;
+    nombre = nombre.replace(/\bde\b/gi, ' ').replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+    return { gramos, nombre, crudo: tr };
+  }).filter(i => i.nombre);
+}
+
+const promptPlatoIA = (ings) => `Calcula las calorías y los macros TOTALES de este plato, con estas cantidades exactas:
+${ings.map(i => `- ${i.gramos ? i.gramos + ' g ' : ''}${i.nombre}`).join('\n')}
+
+Respóndeme SOLO con una línea con este formato, sin nada más:
+Kcal | Proteína g | Carbohidratos g | Grasa g
+Ejemplo: 520 | 45 | 12 | 30`;
+
+function parsearMacrosIA(txt) {
+  const partes = String(txt).split('|').map(s => parseFloat(s.replace(/[^\d.,]/g, '').replace(',', '.')));
+  if (!(partes[0] > 0)) return null;
+  return {
+    kcal: Math.round(partes[0] || 0), prot: Math.round(partes[1] || 0),
+    carb: Math.round(partes[2] || 0), gras: Math.round(partes[3] || 0),
+  };
+}
+
+function sheetPlatoCasero(rerender) {
+  const p = S.perfil();
+  abrirSheet('Plato casero', `
+    <div class="stack">
+      <p class="small muted" style="margin:0">
+        Escribe lo que comiste con sus <b>gramos</b>, uno por línea. La app calcula las calorías
+        sola. Ideal para comida sin código de barras (feria, JUNAEB, casa).
+      </p>
+      <div class="field">
+        <textarea class="input" id="pcTexto" style="min-height:100px" placeholder="200 g bistec de vacuno
+100 g cebolla
+100 g pimentón
+150 g arroz cocido"></textarea>
+      </div>
+      <div class="field"><label class="label">Nombre del plato &mdash; opcional</label>
+        <input class="input" id="pcNombre" placeholder="Bistec a lo pobre"></div>
+      ${selectComida(p)}
+      <div class="card flat" id="pcResu"><div class="tiny dim">Escribe arriba para calcular…</div></div>
+      <button class="btn pri full xl" id="pcOk" disabled>Agregar al día</button>
+
+      <details style="margin-top:2px">
+        <summary class="tiny dim" style="cursor:pointer">¿Un alimento no está en la lista? Calcúlalo con una IA</summary>
+        <div class="stack" style="margin-top:9px">
+          <button class="btn ghost full sm" id="pcCopiar">Copiar texto para pegar en la IA</button>
+          <div class="field"><label class="label">Pega la respuesta (Kcal | Prot | Carbo | Grasa)</label>
+            <input class="input" id="pcIA" placeholder="520 | 45 | 12 | 30"></div>
+          <button class="btn full sm" id="pcUsarIA">Usar ese total de la IA</button>
+        </div>
+      </details>
+    </div>`, (b) => {
+    const ta = b.querySelector('#pcTexto');
+    const resu = b.querySelector('#pcResu');
+    const ok = b.querySelector('#pcOk');
+    let total = null, ings = [];
+
+    const calc = () => {
+      ings = parsearIngredientes(ta.value);
+      if (!ings.length) {
+        resu.innerHTML = '<div class="tiny dim">Escribe arriba para calcular…</div>';
+        ok.disabled = true; total = null; return;
+      }
+      let kcal = 0, prot = 0, carb = 0, gras = 0; const faltan = [];
+      const detalle = ings.map(i => {
+        const hit = buscarLocal(i.nombre)[0];
+        if (hit && i.gramos) {
+          const f = i.gramos / 100;
+          kcal += hit.por100.kcal * f; prot += hit.por100.prot * f;
+          carb += hit.por100.carb * f; gras += hit.por100.gras * f;
+          return `<div class="tiny"><b>${i.gramos} g</b> ${esc(hit.nombre)} · ${num(hit.por100.kcal * f)} kcal</div>`;
+        }
+        faltan.push(i);
+        return `<div class="tiny" style="color:var(--w)">? ${esc(i.crudo)} — no lo encuentro</div>`;
+      }).join('');
+      total = { kcal: Math.round(kcal), prot: Math.round(prot), carb: Math.round(carb), gras: Math.round(gras) };
+      resu.innerHTML = `${detalle}
+        <div class="divider"></div>
+        <div class="row-b"><span class="small">Total</span>
+          <span style="font-size:19px;font-weight:750">${num(total.kcal)} kcal</span></div>
+        <div class="tiny dim">P ${num(total.prot)} · C ${num(total.carb)} · G ${num(total.gras)} g${faltan.length ? ` · ${faltan.length} sin datos (usa la IA abajo)` : ''}</div>`;
+      ok.disabled = false;
+    };
+    ta.oninput = calc;
+
+    b.querySelector('#pcCopiar').onclick = async () => {
+      const t = promptPlatoIA(parsearIngredientes(ta.value));
+      try { await navigator.clipboard.writeText(t); toast('Copiado — pégalo en tu IA'); }
+      catch (e) { toast('No pude copiar; selecciónalo a mano'); }
+    };
+    b.querySelector('#pcUsarIA').onclick = () => {
+      const m = parsearMacrosIA(b.querySelector('#pcIA').value);
+      if (!m) return toast('Formato: Kcal | Prot | Carbo | Grasa');
+      total = m; ok.disabled = false;
+      resu.innerHTML = `<div class="row-b"><span class="small">Total (IA)</span>
+          <span style="font-size:19px;font-weight:750">${num(m.kcal)} kcal</span></div>
+        <div class="tiny dim">P ${num(m.prot)} · C ${num(m.carb)} · G ${num(m.gras)} g</div>`;
+    };
+
+    b.querySelector('#pcOk').onclick = () => {
+      if (!total) return;
+      const sel = leerComidaSel(b, p);
+      const nombre = b.querySelector('#pcNombre').value.trim() ||
+        (ings.length ? ings.map(i => i.nombre).slice(0, 3).join(', ') : 'Plato casero');
+      S.registrarAlimento({
+        nombre, gramos: null,
+        kcal: total.kcal, prot: total.prot, carb: total.carb, gras: total.gras,
+        comidaId: sel.comidaId, comidaNombre: sel.comidaNombre,
+      });
+      cerrarSheet();
+      toast('Plato agregado');
+      rerender();
+    };
+    calc();
+  });
 }
 
 function sheetBuscar(rerender) {
@@ -964,6 +1155,7 @@ function sheetNoEncontrado(codigo, rerender) {
 
 // Ajuste de porción: el usuario dice cuántos gramos y calculamos los macros.
 function sheetPorcion(prod, rerender, editable = false) {
+  const p = S.perfil();
   abrirSheet(prod.nombre || 'Alimento', `
     <div class="stack">
       ${editable || !prod.nombre ? `
@@ -1003,6 +1195,7 @@ function sheetPorcion(prod, rerender, editable = false) {
           `<button class="chip" data-g="${g}">${g} g</button>`).join('')}
       </div>
 
+      ${selectComida(p)}
       <div class="card flat" id="resu"></div>
       <button class="btn pri full xl" id="pOk">Añadir al día</button>
     </div>`, (b) => {
@@ -1035,6 +1228,7 @@ function sheetPorcion(prod, rerender, editable = false) {
       const nombre = (b.querySelector('#pN')?.value || prod.nombre || '').trim();
       if (!nombre) return toast('Ponle nombre');
       if (!gr) return toast('¿Cuántos gramos?');
+      const sel = leerComidaSel(b, p);
       S.registrarAlimento({
         nombre,
         gramos: gr,
@@ -1043,6 +1237,7 @@ function sheetPorcion(prod, rerender, editable = false) {
         carb: Math.round(p100.carb * f * 10) / 10,
         gras: Math.round(p100.gras * f * 10) / 10,
         codigo: prod.codigo || '',
+        comidaId: sel.comidaId, comidaNombre: sel.comidaNombre,
       });
       cerrarSheet();
       toast('Añadido');
