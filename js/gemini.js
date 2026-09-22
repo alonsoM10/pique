@@ -1,9 +1,11 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=15';
+import * as S from './store.js?v=16';
 
-const MODELO = 'gemini-2.0-flash';
+// 'gemini-flash-latest' apunta siempre al modelo flash más nuevo, así no se "vence"
+// cuando Google jubila una versión (nos pasó con gemini-2.0-flash).
+const MODELO = 'gemini-flash-latest';
 const URL = (key) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${encodeURIComponent(key)}`;
 
