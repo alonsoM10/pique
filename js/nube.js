@@ -7,7 +7,7 @@
 // Firebase se carga desde el CDN de Google (gstatic) como módulo ES: no hace falta
 // instalar nada ni tener servidor. Si no hay internet, la app sigue con localStorage.
 
-import * as S from './store.js?v=9';
+import * as S from './store.js?v=10';
 
 // Config del proyecto de Firebase de Alonso. Es pública a propósito (no es un secreto):
 // quien protege los datos son las reglas de Firestore, no esta config.

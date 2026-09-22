@@ -1,8 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=9';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=9';
+import * as S from './store.js?v=10';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=10';
+import { buscarLocal } from './alimentos-cl.js?v=10';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -182,7 +183,7 @@ function sheetFotoPlato(file, rerender) {
     const estado = b.querySelector('#fpEstado');
     let dato;
     try {
-      const Gem = await import('./gemini.js?v=9');
+      const Gem = await import('./gemini.js?v=10');
       const base64 = await Gem.comprimirImagen(file);
       dato = await Gem.analizarPlato(base64);
     } catch (e) {
@@ -869,44 +870,79 @@ function sheetBuscar(rerender) {
   abrirSheet('Buscar alimento', `
     <div class="stack">
       <div class="row">
-        <input class="input" id="sq" placeholder="Pechuga de pollo, yogur griego…" style="flex:1" autocomplete="off">
+        <input class="input" id="sq" placeholder="cebolla, queso gauda, pechuga…" style="flex:1"
+          autocomplete="off" autocapitalize="none">
         <button class="btn blue" id="sGo">Ir</button>
       </div>
       <div class="list" id="sl"><div class="empty">Escribe qué comiste</div></div>
     </div>`, (b) => {
     const q = b.querySelector('#sq'), lista = b.querySelector('#sl');
     setTimeout(() => q.focus(), 130);
-    const ir = async () => {
-      const t = q.value.trim();
-      if (t.length < 2) return;
-      lista.innerHTML = '<div class="empty">Buscando…</div>';
-      try {
-        const r = await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(t)}` +
-          '&search_simple=1&action=process&json=1&page_size=24' +
-          '&fields=code,product_name,brands,nutriments');
-        const j = await r.json();
-        const items = (j.products || [])
-          .map(normaliza)
-          .filter(x => x.por100.kcal > 0);
-        if (!items.length) {
-          lista.innerHTML = '<div class="empty">Nada encontrado. Puedes añadirlo a mano.</div>';
-          return;
-        }
-        lista.innerHTML = items.map((x, i) =>
-          `<button class="item" data-i="${i}" style="width:100%;text-align:left;cursor:pointer">
-            <div style="flex:1;min-width:0">
-              <div class="item-t" style="font-size:13.5px">${esc(x.nombre)}</div>
-              <div class="item-s">${x.por100.kcal} kcal / 100 g</div>
-            </div>
-          </button>`).join('');
-        lista.querySelectorAll('[data-i]').forEach(bt =>
-          bt.onclick = () => sheetPorcion(items[Number(bt.dataset.i)], rerender));
-      } catch (e) {
-        lista.innerHTML = '<div class="empty">Sin conexión</div>';
+
+    let resultados = [];   // lo que se muestra (chilenos + marcas de OFF)
+    let buscando = false;  // ¿todavía consultando marcas?
+    let seq = 0;           // para ignorar respuestas de búsquedas viejas
+    let tEscribe = null, tOFF = null;
+
+    const fila = (x, i) => `
+      <button class="item" data-i="${i}" style="width:100%;text-align:left;cursor:pointer">
+        <div style="flex:1;min-width:0">
+          <div class="item-t" style="font-size:13.5px">
+            ${esc(x.nombre)}${x.local ? ' <span class="pill b" style="font-size:9px">Chile</span>' : ''}
+          </div>
+          <div class="item-s">${num(x.por100.kcal)} kcal / 100 g</div>
+        </div>
+      </button>`;
+
+    const pintar = (vacio = 'Nada encontrado. Puedes añadirlo a mano.') => {
+      if (!resultados.length) {
+        lista.innerHTML = `<div class="empty">${esc(vacio)}</div>
+          <button class="btn ghost full sm" id="sMano">+ Añadir a mano</button>`;
+        const bm = lista.querySelector('#sMano');
+        if (bm) bm.onclick = () => sheetPorcion(
+          { codigo: '', nombre: q.value.trim(), por100: { kcal: 0, prot: 0, carb: 0, gras: 0 } }, rerender, true);
+        return;
       }
+      lista.innerHTML = resultados.map(fila).join('') +
+        (buscando ? '<div class="tiny dim center" style="padding:6px">buscando marcas…</div>' : '');
+      lista.querySelectorAll('[data-i]').forEach(bt =>
+        bt.onclick = () => sheetPorcion(resultados[Number(bt.dataset.i)], rerender));
     };
-    b.querySelector('#sGo').onclick = ir;
-    q.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); ir(); } };
+
+    const buscar = () => {
+      const t = q.value.trim();
+      const mi = ++seq;
+      clearTimeout(tOFF);
+      if (t.length < 2) { resultados = []; buscando = false; return pintar('Escribe qué comiste'); }
+
+      // 1) Chilenos al instante (offline, sin romperse con espacios).
+      resultados = buscarLocal(t);
+      buscando = true;
+      pintar();
+
+      // 2) Marcas / código de barras desde Open Food Facts, un poco después.
+      tOFF = setTimeout(async () => {
+        try {
+          const r = await fetch(`${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(t)}` +
+            '&search_simple=1&action=process&json=1&page_size=20' +
+            '&fields=code,product_name,brands,nutriments');
+          const j = await r.json();
+          if (mi !== seq) return; // ya hay una búsqueda más nueva
+          const marcas = (j.products || []).map(normaliza).filter(x => x.por100.kcal > 0);
+          resultados = [...buscarLocal(t), ...marcas];
+          buscando = false;
+          pintar();
+        } catch (e) {
+          if (mi !== seq) return;
+          buscando = false;
+          pintar(resultados.length ? '' : 'Sin internet para marcas. Usa un alimento de la lista o añádelo a mano.');
+        }
+      }, 350);
+    };
+
+    q.oninput = () => { clearTimeout(tEscribe); tEscribe = setTimeout(buscar, 220); };
+    q.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(tEscribe); buscar(); } };
+    b.querySelector('#sGo').onclick = () => { clearTimeout(tEscribe); buscar(); };
   });
 }
 
