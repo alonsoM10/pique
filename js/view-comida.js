@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=11';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=11';
-import { buscarLocal } from './alimentos-cl.js?v=11';
+import * as S from './store.js?v=12';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=12';
+import { buscarLocal } from './alimentos-cl.js?v=12';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -209,7 +209,7 @@ function sheetFotoPlato(file, rerender) {
     const estado = b.querySelector('#fpEstado');
     let dato;
     try {
-      const Gem = await import('./gemini.js?v=11');
+      const Gem = await import('./gemini.js?v=12');
       const base64 = await Gem.comprimirImagen(file);
       dato = await Gem.analizarPlato(base64);
     } catch (e) {
@@ -796,9 +796,31 @@ function sheetEscaner(rerender) {
 }
 
 async function arrancarCamara(video, msg, onCodigo) {
-  const CONSTRAINTS = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false };
+  // Resolución alta + enfoque continuo: clave para que lea el código en iPhone.
+  const CONSTRAINTS = {
+    video: {
+      facingMode: { ideal: 'environment' },
+      width: { ideal: 1920 }, height: { ideal: 1080 },
+      advanced: [{ focusMode: 'continuous' }],
+    },
+    audio: false,
+  };
   let usado = false;
   const usar = (codigo) => { if (usado) return; usado = true; onCodigo(codigo); };
+  const ok = (t) => {
+    msg.textContent = t; msg.style.color = '';
+    // Si a los 6 s no leyó nada, damos una pista de encuadre (suele ser enfoque/distancia).
+    setTimeout(() => { if (!usado) msg.innerHTML = 'Acerca el código a <b>~15 cm</b>, con buena luz y que se vea <b>nítido</b> (no borroso). Si no, escríbelo a mano abajo.'; }, 6000);
+  };
+  const fallo = (t) => { msg.innerHTML = t; msg.style.color = 'var(--w)'; };
+  // Traduce el error real a algo que se entienda (y que nos diga qué pasa).
+  const explicar = (e) => {
+    const n = (e && e.name) || '';
+    if (n === 'NotAllowedError') return 'La cámara está bloqueada. En iPhone: Ajustes &rsaquo; Apps &rsaquo; Safari &rsaquo; Cámara &rarr; Permitir (o toca “AA” en la barra &rsaquo; Ajustes del sitio). Luego reintenta, o escribe el código a mano.';
+    if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'No encontré la cámara trasera. Escribe el código a mano.';
+    if (n === 'NotReadableError') return 'La cámara está ocupada por otra app. Ciérrala y reintenta.';
+    return `No pude abrir la cámara [${n || (e && e.message) || 'desconocido'}]. Prueba abrir la app en Safari (no desde el icono del inicio), o escribe el código a mano.`;
+  };
 
   // 1) API nativa BarcodeDetector (Chrome Android): rápida y sin descargas.
   if ('BarcodeDetector' in window) {
@@ -806,7 +828,7 @@ async function arrancarCamara(video, msg, onCodigo) {
       stream = await navigator.mediaDevices.getUserMedia(CONSTRAINTS);
       video.srcObject = stream;
       await video.play();
-      msg.textContent = 'Apunta al código de barras del producto';
+      ok('Cámara lista — apunta al código de barras');
       const det = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] });
       const tick = async () => {
         if (!stream || usado) return;
@@ -818,27 +840,36 @@ async function arrancarCamara(video, msg, onCodigo) {
       };
       tick();
       return;
-    } catch (e) { /* si falla, cae a ZXing */ }
+    } catch (e) {
+      if (e && e.name === 'NotAllowedError') return fallo(explicar(e));
+      /* otros errores: cae a ZXing por si acaso */
+    }
   }
 
   // 2) ZXing (Safari iOS y el resto): que ZXing maneje la cámara, es más fiable.
+  msg.textContent = 'Abriendo cámara…';
   try {
     if (!window.ZXing) {
       await cargarScript('https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js');
     }
+  } catch (e) {
+    return fallo('No pude cargar el lector de códigos (¿sin internet?). Escribe el código a mano.');
+  }
+
+  try {
     const hints = new Map();
     const F = window.ZXing.BarcodeFormat;
     hints.set(window.ZXing.DecodeHintType.POSSIBLE_FORMATS,
       [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128]);
     hints.set(window.ZXing.DecodeHintType.TRY_HARDER, true);
-    lector = new window.ZXing.BrowserMultiFormatReader(hints, 200);
-    msg.textContent = 'Apunta al código de barras del producto';
+    lector = new window.ZXing.BrowserMultiFormatReader(hints, 150);
     await lector.decodeFromConstraints(CONSTRAINTS, video, (res, err) => {
       if (res && res.getText) usar(res.getText());
     });
+    ok('Cámara lista — apunta al código de barras');
   } catch (e) {
-    console.error(e);
-    msg.innerHTML = 'No se pudo abrir la cámara o el lector.<br>Revisa permisos de cámara en tu navegador, o escribe el código a mano abajo.';
+    console.error('escaner', e);
+    fallo(explicar(e));
   }
 }
 
