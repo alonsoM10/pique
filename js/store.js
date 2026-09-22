@@ -544,6 +544,26 @@ export function marcarComida(comidaId, fecha = todayISO()) {
 export const comidasHechas = (fecha = todayISO(), p = perfil()) =>
   Object.keys(p.marcadas[fecha] || {}).length;
 
+// Recordatorio suave: ¿hay una comida cuya hora ya pasó (hasta 4 h) y que no marcaste
+// ni registraste? Devuelve esa comida (la más reciente) o null. Se usa para avisar
+// "¿ya anotaste tu almuerzo?" cuando abres la app, sin necesidad de notificaciones push.
+export function comidaPendiente(p = perfil(), ahora = new Date()) {
+  const hoy = todayISO();
+  const min = ahora.getHours() * 60 + ahora.getMinutes();
+  const marc = p.marcadas[hoy] || {};
+  const reg = (p.registroComida || []).filter(x => x.fecha === hoy);
+  let cand = null;
+  for (const c of p.comidas) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(c.hora || '');
+    if (!m) continue;
+    const cm = (+m[1]) * 60 + (+m[2]);
+    if (cm > min || min - cm > 240) continue;         // su hora ya pasó, pero no hace más de 4 h
+    if (marc[c.id] || reg.some(x => x.comidaId === c.id)) continue; // ya marcada o con algo registrado
+    if (!cand || cm > cand.cm) cand = { c, cm };
+  }
+  return cand ? cand.c : null;
+}
+
 // ---------------------------------------------------------------- creatina
 // Hábito diario con racha, para no olvidarla. A diferencia del gym, aquí no hay
 // "días de descanso": la creatina se toma todos los días.

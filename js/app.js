@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=13';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=13';
-import * as Onb from './onboarding.js?v=13';
-import * as Hoy from './view-hoy.js?v=13';
-import * as Entreno from './view-entreno.js?v=13';
-import * as Comida from './view-comida.js?v=13';
-import * as Progreso from './view-progreso.js?v=13';
-import * as Pique from './view-pique.js?v=13';
-import * as Ayuda from './view-ayuda.js?v=13';
-import * as Exp from './exportar.js?v=13';
-import * as Nube from './nube.js?v=13';
+import * as S from './store.js?v=14';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=14';
+import * as Onb from './onboarding.js?v=14';
+import * as Hoy from './view-hoy.js?v=14';
+import * as Entreno from './view-entreno.js?v=14';
+import * as Comida from './view-comida.js?v=14';
+import * as Progreso from './view-progreso.js?v=14';
+import * as Pique from './view-pique.js?v=14';
+import * as Ayuda from './view-ayuda.js?v=14';
+import * as Exp from './exportar.js?v=14';
+import * as Nube from './nube.js?v=14';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -403,7 +403,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=13');
+        const Gem = await import('./gemini.js?v=14');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -422,7 +422,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=13');
+        const Gem = await import('./gemini.js?v=14');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {

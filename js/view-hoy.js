@@ -1,7 +1,15 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js?v=13';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=13';
+import * as S from './store.js?v=14';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=14';
+
+// Recordatorio de comida: si lo cierras, no vuelve a salir esa comida en esta sesión.
+function recordatorioOculto(hoy, id) {
+  try { return sessionStorage.getItem(`pique.rec.${hoy}.${id}`) === '1'; } catch (e) { return false; }
+}
+function ocultarRecordatorio(hoy, id) {
+  try { sessionStorage.setItem(`pique.rec.${hoy}.${id}`, '1'); } catch (e) { /* noop */ }
+}
 
 export function render() {
   const p = S.perfil();
@@ -17,6 +25,8 @@ export function render() {
   const tieneRutina = !!S.rutinaActiva(p);
   const creatinaHoy = S.tomoCreatina(hoy, p);
   const rc = S.rachaCreatina(p);
+  const pend = S.comidaPendiente(p);
+  const recordar = pend && !recordatorioOculto(hoy, pend.id);
 
   const dif = pesos.length > 1 ? pesos[pesos.length - 1].kg - pesos[0].kg : null;
 
@@ -44,6 +54,21 @@ export function render() {
           : anillo(0, { texto: '—', color: '#2f4258' })}
       </div>
     </div>
+
+    ${recordar ? `
+    <!-- RECORDATORIO DE COMIDA -->
+    <div class="card" style="border-color:#5c4712;background:rgba(251,191,36,.09)">
+      <div class="row" style="gap:12px;align-items:center">
+        <div style="font-size:24px">&#127869;</div>
+        <div style="flex:1;min-width:0">
+          <div class="item-t" style="color:var(--w)">¿Ya anotaste tu ${esc(pend.nombre.toLowerCase())}?</div>
+          <div class="item-s">Era a las ${esc(pend.hora)}. Anótala para no perder la cuenta.</div>
+        </div>
+        <button class="btn ghost sm" id="recCerrar" style="flex:none" aria-label="Ahora no">&#10005;</button>
+      </div>
+      <button class="btn full sm" data-go="comida" style="margin-top:10px">Anotar comida</button>
+    </div>
+    ` : ''}
 
     <!-- ENTRENO DE HOY -->
     ${!tieneRutina ? `
@@ -179,6 +204,14 @@ export function mount(root, ir, rerender) {
   if (bc) bc.onclick = () => {
     S.marcarCreatina();
     if (S.tomoCreatina()) toast('Creatina marcada 💪');
+    rerender?.();
+  };
+
+  const rcerrar = root.querySelector('#recCerrar');
+  if (rcerrar) rcerrar.onclick = () => {
+    const p = S.perfil();
+    const pend = S.comidaPendiente(p);
+    if (pend) ocultarRecordatorio(S.todayISO(), pend.id);
     rerender?.();
   };
 }
