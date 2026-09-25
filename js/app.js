@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=17';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=17';
-import * as Onb from './onboarding.js?v=17';
-import * as Hoy from './view-hoy.js?v=17';
-import * as Entreno from './view-entreno.js?v=17';
-import * as Comida from './view-comida.js?v=17';
-import * as Progreso from './view-progreso.js?v=17';
-import * as Pique from './view-pique.js?v=17';
-import * as Ayuda from './view-ayuda.js?v=17';
-import * as Exp from './exportar.js?v=17';
-import * as Nube from './nube.js?v=17';
+import * as S from './store.js?v=18';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=18';
+import * as Onb from './onboarding.js?v=18';
+import * as Hoy from './view-hoy.js?v=18';
+import * as Entreno from './view-entreno.js?v=18';
+import * as Comida from './view-comida.js?v=18';
+import * as Progreso from './view-progreso.js?v=18';
+import * as Pique from './view-pique.js?v=18';
+import * as Ayuda from './view-ayuda.js?v=18';
+import * as Exp from './exportar.js?v=18';
+import * as Nube from './nube.js?v=18';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -23,6 +23,16 @@ const VISTAS = {
 
 let ruta = 'hoy';
 let enOnboarding = false;
+let invitacionPendiente = '';   // código de grupo que llegó por link (?grupo=...)
+
+// Si alguien abrió un link de invitación, le mostramos la ventana de unirse con el código puesto.
+function abrirInvitacionSiHay() {
+  if (!invitacionPendiente || enOnboarding) return;
+  const code = invitacionPendiente;
+  invitacionPendiente = '';
+  if (S.enGrupo()) { toast('Ya estás en el grupo ' + S.grupoCodigo()); return; }
+  sheetGrupo(code);
+}
 
 // ------------------------------------------------------------------ router
 
@@ -188,7 +198,11 @@ function sheetEditarPersona(perfil) {
 // se lo pasan por WhatsApp), dice quién es, y desde ese momento ve a los demás y ellos
 // a él. No hay que crear rivales a mano: aparecen solos.
 
-function sheetGrupo() {
+function linkInvitacion(codigo) {
+  return location.origin + location.pathname + '?grupo=' + encodeURIComponent(codigo);
+}
+
+function sheetGrupo(codigoInicial = '') {
   const p = S.perfil();
 
   if (S.enGrupo()) {
@@ -203,12 +217,21 @@ function sheetGrupo() {
             <b class="small">${esc(S.avatar(yo))} ${esc(yo.nombre)}</b></div>
         </div>
         <p class="tiny dim" style="margin:0">
-          Todos los que escriban <b>${esc(S.grupoCodigo())}</b> se ven entre sí. Pásaselo a los
-          demás para que se sumen. Lo que hagas (gym, comida, creatina) les aparece a ellos.
+          Comparte el link o el código <b>${esc(S.grupoCodigo())}</b> y los demás se suman solos.
+          Lo que hagas (gym, comida, creatina) les aparece a ellos.
         </p>
+        <button class="btn blue full" id="grInvitar">&#128279; Compartir link de invitación</button>
         <button class="btn ghost full sm" id="grProbar">Probar conexión</button>
         <button class="btn danger full sm" id="grSalir">Salir del grupo</button>
       </div>`, (b) => {
+      b.querySelector('#grInvitar').onclick = async () => {
+        const link = linkInvitacion(S.grupoCodigo());
+        const texto = `Únete a mi grupo "${S.grupoCodigo()}" en Pique 💪`;
+        try {
+          if (navigator.share) await navigator.share({ title: 'Pique', text: texto, url: link });
+          else { await navigator.clipboard.writeText(link); toast('Link copiado — mándalo por WhatsApp'); }
+        } catch (e) { /* el usuario canceló el compartir */ }
+      };
       b.querySelector('#grProbar').onclick = async () => {
         const btn = b.querySelector('#grProbar');
         btn.textContent = 'Probando…'; btn.disabled = true;
@@ -231,12 +254,13 @@ function sheetGrupo() {
   abrirSheet('Unirme a un grupo', `
     <div class="stack">
       <p class="small muted" style="margin:0">
-        Escribe el <b>mismo código</b> que tus amigos (ej: <i>primos</i>) y di quién eres.
-        Desde ahí se ven todos y no tienes que crear a nadie a mano.
+        ${codigoInicial
+          ? `Te invitaron al grupo <b>${esc(codigoInicial)}</b>. Solo pon tu nombre y únete.`
+          : `Escribe el <b>mismo código</b> que tus amigos (ej: <i>primos</i>) y di quién eres. Desde ahí se ven todos y no tienes que crear a nadie a mano.`}
       </p>
       <div class="field">
         <label class="label">Código del grupo</label>
-        <input class="input" id="grCodigo" placeholder="primos" autocomplete="off" autocapitalize="none">
+        <input class="input" id="grCodigo" value="${esc(codigoInicial)}" placeholder="primos" autocomplete="off" autocapitalize="none">
       </div>
       <div class="field">
         <label class="label">Tu nombre</label>
@@ -403,7 +427,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=17');
+        const Gem = await import('./gemini.js?v=18');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -422,7 +446,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=17');
+        const Gem = await import('./gemini.js?v=18');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -458,6 +482,8 @@ function arrancarOnboarding() {
     enOnboarding = false;
     ruta = 'hoy';
     pintar();
+    // si venía de un link de invitación, ahora sí le mostramos la ventana de unirse
+    if (invitacionPendiente) { abrirInvitacionSiHay(); return; }
     const p = S.perfil();
     // si pidió plantilla y no tiene rutina, se la dejamos puesta
     if (!S.rutinaActiva(p)) {
@@ -493,11 +519,23 @@ function iniciar() {
     if (VISTAS[n] && n !== ruta && !enOnboarding) { ruta = n; pintar(); }
   });
 
+  // ¿Vino un link de invitación? (?grupo=familia) Guardamos el código y limpiamos la URL.
+  try {
+    const invit = new URLSearchParams(location.search).get('grupo');
+    if (invit) {
+      invitacionPendiente = invit;
+      history.replaceState(null, '', location.pathname + location.hash);
+    }
+  } catch (e) { /* noop */ }
+
   if (!S.perfil().onboarding) arrancarOnboarding();
   else pintar();
 
   // Si este teléfono ya está en un grupo, arranca la sincronización con la nube.
   if (S.enGrupo()) Nube.iniciar(() => { if (!enOnboarding) pintar(); }).catch(() => {});
+
+  // Si llegó por link y ya está listo (sin onboarding), abrimos la ventana de unirse.
+  abrirInvitacionSiHay();
 
   setTimeout(() => {
     $('#splash').classList.add('gone');
