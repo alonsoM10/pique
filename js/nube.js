@@ -7,7 +7,7 @@
 // Firebase se carga desde el CDN de Google (gstatic) como módulo ES: no hace falta
 // instalar nada ni tener servidor. Si no hay internet, la app sigue con localStorage.
 
-import * as S from './store.js?v=16';
+import * as S from './store.js?v=17';
 
 // Config del proyecto de Firebase de Alonso. Es pública a propósito (no es un secreto):
 // quien protege los datos son las reglas de Firestore, no esta config.
@@ -34,7 +34,14 @@ async function cargar() {
   const appMod = await import(`https://www.gstatic.com/firebasejs/${VER}/firebase-app.js`);
   const fs = await import(`https://www.gstatic.com/firebasejs/${VER}/firebase-firestore.js`);
   const app = appMod.getApps?.().length ? appMod.getApp() : appMod.initializeApp(CONFIG);
-  db = fs.getFirestore(app);
+  // autoDetectLongPolling: hace que Firestore funcione también en redes/teléfonos donde
+  // la conexión por defecto (WebChannel) queda bloqueada. Sin esto, a algunos les fallaba
+  // la subida en silencio (le pasó al teléfono de Cristóbal).
+  try {
+    db = fs.initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+  } catch (e) {
+    db = fs.getFirestore(app); // ya estaba inicializado
+  }
   sdk = fs;
   return sdk;
 }
@@ -81,10 +88,26 @@ export async function iniciar(alActualizar) {
   return true;
 }
 
+// Corre una promesa con límite de tiempo (si la red bloquea, no se queda colgado).
+function conTimeout(promesa, ms, msg) {
+  let t;
+  const limite = new Promise((_, rej) => { t = setTimeout(() => rej(new Error(msg)), ms); });
+  return Promise.race([promesa, limite]).finally(() => clearTimeout(t));
+}
+
 // Unirse a un grupo nuevo y empezar a sincronizar.
 export async function unirse(codigo, alActualizar) {
   await cargar();                 // valida que Firebase carga antes de tocar el estado
   S.unirGrupo(codigo);
+  try {
+    // Subimos SIN atrapar el error: si no logra subir, el usuario tiene que saberlo
+    // (antes fallaba en silencio y parecía unido sin estarlo).
+    await conTimeout(subirMiPerfil(), 10000,
+      'No pude conectar con la nube. Revisa tu internet (o si tu navegador bloquea conexiones) e inténtalo de nuevo.');
+  } catch (e) {
+    S.salirGrupo();               // deshacemos para no quedar "medio unido"
+    throw e;
+  }
   await iniciar(alActualizar);
 }
 

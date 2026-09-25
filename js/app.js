@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=16';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=16';
-import * as Onb from './onboarding.js?v=16';
-import * as Hoy from './view-hoy.js?v=16';
-import * as Entreno from './view-entreno.js?v=16';
-import * as Comida from './view-comida.js?v=16';
-import * as Progreso from './view-progreso.js?v=16';
-import * as Pique from './view-pique.js?v=16';
-import * as Ayuda from './view-ayuda.js?v=16';
-import * as Exp from './exportar.js?v=16';
-import * as Nube from './nube.js?v=16';
+import * as S from './store.js?v=17';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=17';
+import * as Onb from './onboarding.js?v=17';
+import * as Hoy from './view-hoy.js?v=17';
+import * as Entreno from './view-entreno.js?v=17';
+import * as Comida from './view-comida.js?v=17';
+import * as Progreso from './view-progreso.js?v=17';
+import * as Pique from './view-pique.js?v=17';
+import * as Ayuda from './view-ayuda.js?v=17';
+import * as Exp from './exportar.js?v=17';
+import * as Nube from './nube.js?v=17';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -284,7 +284,7 @@ function sheetGrupo() {
         pintar();
       } catch (e) {
         btn.textContent = 'Unirme al grupo'; btn.disabled = false;
-        toast('No pude conectar. Revisa internet o que la base de datos esté creada.');
+        toast(e.message || 'No pude conectar. Revisa tu internet e inténtalo de nuevo.');
       }
     };
   });
@@ -403,7 +403,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=16');
+        const Gem = await import('./gemini.js?v=17');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -422,7 +422,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=16');
+        const Gem = await import('./gemini.js?v=17');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
