@@ -1,7 +1,7 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=21';
+import * as S from './store.js?v=22';
 
 // Probamos varios modelos en orden: si uno está saturado ("high demand"), pasamos al
 // siguiente. 'gemini-flash-latest' es el más nuevo; los otros son estables de respaldo.
@@ -101,18 +101,19 @@ function leerJson(txt) {
 }
 
 // Punto de entrada: usa el Worker de Cloudflare si está configurado; si no, Gemini.
-export async function analizarPlato(base64) {
-  if (S.workerUrl()) return analizarConWorker(base64);
-  return analizarConGemini(base64);
+// `pista` es una corrección del usuario ("en realidad es pan con queso") para re-estimar.
+export async function analizarPlato(base64, pista = '') {
+  if (S.workerUrl()) return analizarConWorker(base64, pista);
+  return analizarConGemini(base64, pista);
 }
 
 // --- Cloudflare Worker (modelo open source, la clave vive en el servidor) ---
-async function analizarConWorker(base64) {
+async function analizarConWorker(base64, pista = '') {
   const url = S.workerUrl();
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: base64 }),
+    body: JSON.stringify({ image: base64, pista }),
   });
   if (!r.ok) {
     let msg = `Error ${r.status} del Worker`;
@@ -134,7 +135,7 @@ export async function probarWorker() {
 }
 
 // --- Gemini (alternativa directa desde el navegador) ---
-async function analizarConGemini(base64) {
+async function analizarConGemini(base64, pista = '') {
   const key = S.geminiKey();
   if (!key) throw new Error('Configura la foto del plato en Ajustes');
 
@@ -143,27 +144,15 @@ Devuelve SOLO un JSON con esta forma exacta:
 {"nombre": "descripción breve en español", "kcal": number, "prot": number, "carb": number, "gras": number}
 - kcal: calorías totales aproximadas del plato (número entero)
 - prot, carb, gras: gramos aproximados de proteína, carbohidratos y grasa
-Si la foto no es comida, responde {"nombre":"no es comida","kcal":0,"prot":0,"carb":0,"gras":0}.`;
+Si la foto no es comida, responde {"nombre":"no es comida","kcal":0,"prot":0,"carb":0,"gras":0}.${
+  pista ? `\nIMPORTANTE: el usuario dice que en realidad es: "${pista}". Puede que en la foto no se vea todo. Corrige tu estimación usando esa aclaración, y refleja eso en "nombre".` : ''
+}`;
 
   const txt = await llamar(key, [
     { text: prompt },
     { inline_data: { mime_type: 'image/jpeg', data: base64 } },
   ]);
-
-  let dato;
-  try { dato = JSON.parse(txt); }
-  catch (e) {
-    const m = txt.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('No entendí la respuesta de Gemini');
-    dato = JSON.parse(m[0]);
-  }
-  return {
-    nombre: String(dato.nombre || 'Plato').slice(0, 80),
-    kcal: Math.max(0, Math.round(Number(dato.kcal) || 0)),
-    prot: Math.max(0, Math.round(Number(dato.prot) || 0)),
-    carb: Math.max(0, Math.round(Number(dato.carb) || 0)),
-    gras: Math.max(0, Math.round(Number(dato.gras) || 0)),
-  };
+  return leerJson(txt);
 }
 
 // Comprueba que la clave sirve, con una petición mínima de texto.

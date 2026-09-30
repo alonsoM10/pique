@@ -1,8 +1,8 @@
 // exportar.js — copia de seguridad en JSON y exportación a Excel.
 // El .xlsx se arma con SheetJS, que se descarga sólo cuando pulsas el botón.
 
-import * as S from './store.js?v=21';
-import { toast } from './ui.js?v=21';
+import * as S from './store.js?v=22';
+import { toast } from './ui.js?v=22';
 
 const CDN_XLSX = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 
