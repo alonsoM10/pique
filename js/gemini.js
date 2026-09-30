@@ -1,13 +1,18 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=18';
+import * as S from './store.js?v=19';
 
-// 'gemini-flash-latest' apunta siempre al modelo flash más nuevo, así no se "vence"
-// cuando Google jubila una versión (nos pasó con gemini-2.0-flash).
-const MODELO = 'gemini-flash-latest';
-const URL = (key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${encodeURIComponent(key)}`;
+// Probamos varios modelos en orden: si uno está saturado ("high demand"), pasamos al
+// siguiente. 'gemini-flash-latest' es el más nuevo; los otros son estables de respaldo.
+const MODELOS = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-flash-lite-latest'];
+const URL = (key, modelo) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
+
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+// ¿Es un error temporal de saturación (se puede reintentar / cambiar de modelo)?
+const esSobrecarga = (status, msg) =>
+  status === 503 || status === 429 || /high demand|overloaded|unavailable|try again/i.test(msg || '');
 
 // Comprime la foto a máx 1024 px y JPEG, para que pese poco y no gaste cupo de más.
 export function comprimirImagen(file, max = 1024) {
@@ -32,8 +37,9 @@ const URL_desde = (f) => URL_c().createObjectURL(f);
 const URL_revocar = (u) => URL_c().revokeObjectURL(u);
 const URL_c = () => window.URL || window.webkitURL;
 
-async function llamar(key, partes) {
-  const r = await fetch(URL(key), {
+// Una llamada a un modelo concreto. Marca el error como "sobrecarga" para poder reintentar.
+async function llamarModelo(key, modelo, partes) {
+  const r = await fetch(URL(key, modelo), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -44,14 +50,36 @@ async function llamar(key, partes) {
   if (!r.ok) {
     let msg = `Error ${r.status}`;
     try { const j = await r.json(); msg = j.error?.message || msg; } catch (e) {}
-    if (r.status === 400 && /API key/i.test(msg)) msg = 'La clave no es válida';
-    if (r.status === 429) msg = 'Te pasaste del cupo gratis de hoy. Prueba mañana.';
-    throw new Error(msg);
+    const e = new Error(msg);
+    e.status = r.status;
+    e.sobrecarga = esSobrecarga(r.status, msg);
+    throw e;
   }
   const j = await r.json();
   const txt = j.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!txt) throw new Error('Gemini no devolvió respuesta');
+  if (!txt) throw new Error('La IA no devolvió respuesta');
   return txt;
+}
+
+// Recorre los modelos; reintenta 1 vez cada uno si está saturado, luego pasa al siguiente.
+async function llamar(key, partes) {
+  let ultimo;
+  for (const modelo of MODELOS) {
+    for (let intento = 0; intento < 2; intento++) {
+      try {
+        return await llamarModelo(key, modelo, partes);
+      } catch (e) {
+        ultimo = e;
+        // Errores no recuperables (clave mala, etc.): cortamos con mensaje claro.
+        if (e.status === 400 && /API key/i.test(e.message)) throw new Error('La clave no es válida');
+        if (!e.sobrecarga) throw e;
+        // Saturado: reintenta el mismo modelo una vez; si no, pasa al siguiente.
+        if (intento === 0) { await espera(1200); continue; }
+        break;
+      }
+    }
+  }
+  throw new Error('La IA está saturada ahora mismo. Prueba en un rato, o usa "Plato casero" por gramos mientras tanto.');
 }
 
 // Extrae el JSON de la estimación de un texto (venga de Gemini o del Worker).
