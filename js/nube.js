@@ -7,7 +7,7 @@
 // Firebase se carga desde el CDN de Google (gstatic) como módulo ES: no hace falta
 // instalar nada ni tener servidor. Si no hay internet, la app sigue con localStorage.
 
-import * as S from './store.js?v=19';
+import * as S from './store.js?v=20';
 
 // Config del proyecto de Firebase de Alonso. Es pública a propósito (no es un secreto):
 // quien protege los datos son las reglas de Firestore, no esta config.
@@ -98,7 +98,20 @@ function conTimeout(promesa, ms, msg) {
 // Unirse a un grupo nuevo y empezar a sincronizar.
 export async function unirse(codigo, alActualizar) {
   await cargar();                 // valida que Firebase carga antes de tocar el estado
-  S.unirGrupo(codigo);
+  const cod = String(codigo).trim().toLowerCase().replace(/\s+/g, '-');
+
+  // ¿Ya hay alguien con mi mismo nombre en el grupo? Reclamo su lugar (evita duplicados
+  // cuando alguien reinstala la app o vuelve a unirse).
+  let idDestino = null;
+  try {
+    const yo = S.perfil();
+    const norm = (n) => String(n || '').trim().toLowerCase();
+    const snap = await conTimeout(sdk.getDocs(colGrupo(cod)), 8000, 'timeout');
+    const match = snap.docs.find(d => norm(d.data().nombre) === norm(yo.nombre));
+    if (match) idDestino = match.id;
+  } catch (e) { /* si no puedo leer, sigo con mi id normal */ }
+
+  S.unirGrupo(cod, idDestino);
   try {
     // Subimos SIN atrapar el error: si no logra subir, el usuario tiene que saberlo
     // (antes fallaba en silencio y parecía unido sin estarlo).

@@ -189,13 +189,17 @@ export const miPerfil = () => {
 };
 
 // Entrar a un grupo: yo soy el perfil activo; se quitan los perfiles de práctica
-// (los demás aparecerán solos desde la nube).
+// (los demás aparecerán solos desde la nube). Si `yoId` viene (reclamo un lugar que ya
+// existe en el grupo con mi mismo nombre), re-etiqueto mi perfil con ese id para escribir
+// sobre ese documento en vez de crear un duplicado.
 export function unirGrupo(codigo, yoId = null) {
   const s = load();
   s.grupo = String(codigo).trim().toLowerCase().replace(/\s+/g, '-');
-  s.miPerfilId = yoId || s.perfilActivo;
-  s.perfiles = s.perfiles.filter(p => p.id === s.miPerfilId);
-  s.perfilActivo = s.miPerfilId;
+  const activo = s.perfiles.find(p => p.id === s.perfilActivo) || s.perfiles[0];
+  if (yoId && yoId !== activo.id) activo.id = yoId;
+  s.miPerfilId = activo.id;
+  s.perfilActivo = activo.id;
+  s.perfiles = s.perfiles.filter(p => p.id === activo.id);
   s.piqueOcultos = [];
   save();
 }
