@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=22';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=22';
-import { buscarLocal } from './alimentos-cl.js?v=22';
+import * as S from './store.js?v=23';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=23';
+import { buscarLocal } from './alimentos-cl.js?v=23';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -84,6 +84,9 @@ export function render() {
       <button class="btn ghost sm" id="addComida">+ Añadir comida</button>
       <button class="btn ${p.comidas.length ? 'ghost' : 'pri'} sm" id="importarIA">&#128203; Cargar mi minuta</button>
     </div>
+    <button class="btn ghost full sm" id="minutaPdf">
+      &#128196; ${S.minutaPdf() ? 'Ver el PDF de mi minuta' : 'Guardar el PDF de mi minuta'}
+    </button>
 
   </div>`;
 }
@@ -173,6 +176,82 @@ export function mount(root, ir, rerender) {
   };
   root.querySelector('#importarIA').onclick = () => sheetImportarIA(rerender);
   root.querySelector('#opcionesMinuta')?.addEventListener('click', () => sheetOpcionesMinuta(rerender));
+  root.querySelector('#minutaPdf').onclick = () => sheetMinutaPdf(rerender);
+}
+
+// ------------------------------------------------------------------ PDF de la minuta
+//
+// Guardas el PDF que te dio tu nutricionista y lo abres tal cual, sin depender de la minuta
+// parseada. Vive solo en este móvil (no se sube a la nube). Para verlo lo convertimos a un
+// blob y lo abrimos, que es lo más fiable en el teléfono.
+
+function dataUrlABlob(dataUrl) {
+  const [meta, b64] = dataUrl.split(',');
+  const mime = (meta.match(/:(.*?);/) || [])[1] || 'application/pdf';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function sheetMinutaPdf(rerender) {
+  const pintar = () => {
+    const hay = !!S.minutaPdf();
+    abrirSheet('PDF de mi minuta', `
+      <div class="stack">
+        <p class="small muted" style="margin:0">
+          Guarda el PDF que te dio tu nutricionista y ábrelo cuando quieras. Se queda solo en
+          este teléfono.
+        </p>
+        ${hay ? `
+          <button class="btn pri full" id="mpVer">&#128196; Abrir el PDF</button>
+          <button class="btn full sm" id="mpCambiar">Cambiar por otro PDF</button>
+          <button class="btn danger full sm" id="mpQuitar">Quitar el PDF</button>
+        ` : `
+          <button class="btn pri full" id="mpSubir">Elegir PDF</button>
+        `}
+        <input type="file" id="mpInput" accept="application/pdf" hidden>
+        <p class="tiny dim" style="margin:0">Si el PDF es muy pesado (más de ~4 MB) puede no caber; pídele a tu nutri uno más liviano o una foto.</p>
+      </div>`, (b) => {
+      const input = b.querySelector('#mpInput');
+
+      const elegir = () => { input.value = ''; input.click(); };
+      input.onchange = () => {
+        const f = input.files && input.files[0];
+        if (!f) return;
+        if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) return toast('Tiene que ser un PDF');
+        const lector = new FileReader();
+        lector.onload = () => {
+          const ok = S.guardarMinutaPdf(String(lector.result));
+          if (!ok) return toast('El PDF es muy pesado para guardarlo aquí');
+          toast('PDF guardado');
+          rerender();
+          pintar();
+        };
+        lector.onerror = () => toast('No pude leer el PDF');
+        lector.readAsDataURL(f);
+      };
+
+      const abrir = () => {
+        try {
+          const url = URL.createObjectURL(dataUrlABlob(S.minutaPdf()));
+          window.open(url, '_blank');
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (e) { toast('No pude abrir el PDF'); }
+      };
+
+      b.querySelector('#mpSubir')?.addEventListener('click', elegir);
+      b.querySelector('#mpCambiar')?.addEventListener('click', elegir);
+      b.querySelector('#mpVer')?.addEventListener('click', abrir);
+      b.querySelector('#mpQuitar')?.addEventListener('click', async () => {
+        if (!await confirmar('Quitar PDF', 'Se borra el PDF de este móvil (tus comidas no se tocan).', 'Quitar')) return;
+        S.borrarMinutaPdf();
+        rerender();
+        pintar();
+      });
+    });
+  };
+  pintar();
 }
 
 // ------------------------------------------------------------------ foto del plato (IA)
@@ -210,7 +289,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=22');
+      Gem = await import('./gemini.js?v=23');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;

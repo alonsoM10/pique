@@ -593,6 +593,23 @@ export function rachaCreatina(p = perfil()) {
   return n;
 }
 
+// ---------------------------------------------------------------- PDF de la minuta
+// Se guarda APARTE del estado (no entra en el perfil que se sincroniza a la nube, para no
+// pasar el límite de tamaño de Firestore). Vive solo en este dispositivo, por perfil.
+
+const claveMinutaPdf = (perfilId) => 'pique.minutaPdf.' + (perfilId || perfil().id);
+
+export function minutaPdf(perfilId) {
+  try { return localStorage.getItem(claveMinutaPdf(perfilId)) || ''; } catch (e) { return ''; }
+}
+export function guardarMinutaPdf(dataUrl, perfilId) {
+  try { localStorage.setItem(claveMinutaPdf(perfilId), dataUrl); return true; }
+  catch (e) { return false; } // suele ser falta de espacio (PDF muy grande)
+}
+export function borrarMinutaPdf(perfilId) {
+  try { localStorage.removeItem(claveMinutaPdf(perfilId)); } catch (e) { /* noop */ }
+}
+
 export function registrarAlimento(a) {
   const p = perfil();
   p.registroComida.push({ id: uid(), fecha: todayISO(), ...a });
