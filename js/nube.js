@@ -1,16 +1,12 @@
-// nube.js — sincronización con Firebase (Firestore).
+// nube.js — login con Google + sincronización con Firebase (Firestore).
 //
-// La idea: cada teléfono es UNA persona ("yo") y sube solo su propio perfil a un
-// grupo compartido. La app escucha ese grupo y trae a los demás integrantes en tiempo
-// real. Así Alonso ve lo de Vicente y Vicente lo de Alonso, sin crear rivales a mano.
-//
-// Firebase se carga desde el CDN de Google (gstatic) como módulo ES: no hace falta
-// instalar nada ni tener servidor. Si no hay internet, la app sigue con localStorage.
+// Con login: cada persona es su CUENTA de Google (uid estable). Su perfil vive en
+// grupos/<codigo>/perfiles/<uid>. Como el uid es siempre el mismo, no hay duplicados y
+// tus datos te siguen en cualquier teléfono. Sin internet, la app sigue con localStorage.
 
-import * as S from './store.js?v=20';
+import * as S from './store.js?v=21';
 
-// Config del proyecto de Firebase de Alonso. Es pública a propósito (no es un secreto):
-// quien protege los datos son las reglas de Firestore, no esta config.
+// Config pública del proyecto Firebase de Alonso (no es secreto; protegen las reglas).
 const CONFIG = {
   apiKey: 'AIzaSyDORWVqblDMLcDq5p2gTcXWR_cktxR7vHw',
   authDomain: 'pique-8a5d7.firebaseapp.com',
@@ -20,57 +16,119 @@ const CONFIG = {
   appId: '1:338010561227:web:6e09bd3a7adb8f3ecdd94e',
 };
 
-const VER = '11.0.0'; // versión del SDK de Firebase servida por gstatic
+const VER = '11.0.0';
+const CDN = (f) => `https://www.gstatic.com/firebasejs/${VER}/${f}`;
 
-let sdk = null;         // funciones de firestore ya importadas
-let db = null;          // instancia de Firestore
-let desuscribir = null; // corta el listener del grupo
-let quitarOyente = null;// corta el oyente de cambios locales
-let pushTimer = null;   // debounce de subidas
+let appGlobal = null;
+let sdk = null;            // firestore
+let authSdk = null;        // auth
+let auth = null;           // instancia de auth
+let usuario = null;        // { uid, nombre, foto, email } o null
+let db = null;
+let desuscribir = null;
+let quitarOyente = null;
+let pushTimer = null;
+let authListo = null;      // promesa: auth cargado + primer estado conocido
+const oyentesAuth = new Set();
 
-// Carga perezosa del SDK (solo la primera vez que se usa el grupo).
-async function cargar() {
-  if (sdk) return sdk;
-  const appMod = await import(`https://www.gstatic.com/firebasejs/${VER}/firebase-app.js`);
-  const fs = await import(`https://www.gstatic.com/firebasejs/${VER}/firebase-firestore.js`);
-  const app = appMod.getApps?.().length ? appMod.getApp() : appMod.initializeApp(CONFIG);
-  // autoDetectLongPolling: hace que Firestore funcione también en redes/teléfonos donde
-  // la conexión por defecto (WebChannel) queda bloqueada. Sin esto, a algunos les fallaba
-  // la subida en silencio (le pasó al teléfono de Cristóbal).
+const norm = (n) => String(n || '').trim().toLowerCase();
+const normCodigo = (c) => String(c || '').trim().toLowerCase().replace(/\s+/g, '-');
+const infoUsuario = (u) => u ? {
+  uid: u.uid, nombre: u.displayName || '', foto: u.photoURL || '', email: u.email || '',
+} : null;
+
+// ------------------------------------------------------------------ carga
+
+async function cargarFirestore() {
+  if (sdk) return;
+  const appMod = await import(CDN('firebase-app.js'));
+  const fs = await import(CDN('firebase-firestore.js'));
+  appGlobal = appMod.getApps?.().length ? appMod.getApp() : appMod.initializeApp(CONFIG);
+  // long-polling: funciona en redes/teléfonos que bloquean el transporte por defecto.
   try {
-    db = fs.initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+    db = fs.initializeFirestore(appGlobal, { experimentalAutoDetectLongPolling: true });
   } catch (e) {
-    db = fs.getFirestore(app); // ya estaba inicializado
+    db = fs.getFirestore(appGlobal);
   }
   sdk = fs;
-  return sdk;
 }
+
+// Carga auth y espera a saber el primer estado (si ya había sesión guardada).
+async function cargarAuth() {
+  await cargarFirestore();
+  if (authSdk) return;
+  const am = await import(CDN('firebase-auth.js'));
+  authSdk = am;
+  auth = am.getAuth(appGlobal);
+  await new Promise((resolve) => {
+    am.onAuthStateChanged(auth, (u) => {
+      usuario = infoUsuario(u);
+      oyentesAuth.forEach(f => { try { f(usuario); } catch (e) {} });
+      resolve();     // resuelve en la primera llamada; el listener sigue vivo
+    });
+  });
+  // Si volvemos de un login por redirección (iPhone/PWA), completa el proceso.
+  try { await am.getRedirectResult(auth); } catch (e) { /* no venía de redirect */ }
+}
+
+// Prepara auth al arrancar la app. `alCambiar(usuario)` se llama en cada cambio de sesión.
+export function prepararAuth(alCambiar) {
+  if (alCambiar) oyentesAuth.add(alCambiar);
+  if (!authListo) authListo = cargarAuth();
+  return authListo;
+}
+
+export const usuarioActual = () => usuario;
+
+// ------------------------------------------------------------------ login
+
+export async function entrarConGoogle() {
+  await cargarAuth();
+  const prov = new authSdk.GoogleAuthProvider();
+  prov.setCustomParameters({ prompt: 'select_account' });
+  try {
+    const res = await authSdk.signInWithPopup(auth, prov);
+    return infoUsuario(res.user);
+  } catch (e) {
+    const code = String(e.code || e.message || '');
+    // En PWA/iPhone el popup suele bloquearse: caemos a redirección.
+    if (/popup|cancell|not-supported|blocked/i.test(code)) {
+      await authSdk.signInWithRedirect(auth, prov);
+      return null; // la app navega fuera y vuelve ya logueada
+    }
+    throw e;
+  }
+}
+
+export async function cerrarSesion() {
+  if (auth) { try { await authSdk.signOut(auth); } catch (e) {} }
+  salir();
+}
+
+// ------------------------------------------------------------------ firestore sync
 
 const docMio = (codigo, id) => sdk.doc(db, 'grupos', codigo, 'perfiles', id);
 const colGrupo = (codigo) => sdk.collection(db, 'grupos', codigo, 'perfiles');
 
-// Sube MI perfil al grupo (limpio de undefined con un round-trip por JSON).
 async function subirMiPerfil() {
   if (!S.enGrupo() || !db) return;
   const yo = S.miPerfil();
   if (!yo) return;
   const limpio = JSON.parse(JSON.stringify(yo));
   limpio._actualizado = Date.now();
+  if (usuario) { limpio._uid = usuario.uid; if (usuario.foto) limpio._foto = usuario.foto; }
   await sdk.setDoc(docMio(S.grupoCodigo(), yo.id), limpio);
 }
 
-// Cada cambio local dispara una subida, pero con espera para no saturar (debounce).
 function programarSubida() {
-  if (S.estaAplicandoNube()) return; // no reboto lo que acabo de bajar de la nube
+  if (S.estaAplicandoNube()) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => subirMiPerfil().catch(e => console.warn('subir', e)), 700);
 }
 
-// Arranca la sincronización si el teléfono ya está en un grupo.
-// `alActualizar` se llama cada vez que llegan datos nuevos para repintar la pantalla.
 export async function iniciar(alActualizar) {
   if (!S.enGrupo()) return false;
-  await cargar();
+  await cargarFirestore();
   const codigo = S.grupoCodigo();
 
   await subirMiPerfil().catch(e => console.warn('subida inicial', e));
@@ -88,43 +146,30 @@ export async function iniciar(alActualizar) {
   return true;
 }
 
-// Corre una promesa con límite de tiempo (si la red bloquea, no se queda colgado).
 function conTimeout(promesa, ms, msg) {
   let t;
   const limite = new Promise((_, rej) => { t = setTimeout(() => rej(new Error(msg)), ms); });
   return Promise.race([promesa, limite]).finally(() => clearTimeout(t));
 }
 
-// Unirse a un grupo nuevo y empezar a sincronizar.
+// Unirse a un grupo: exige estar logueado. La identidad es el uid de Google, así que
+// nunca se duplica (la misma persona escribe siempre sobre su propio documento).
 export async function unirse(codigo, alActualizar) {
-  await cargar();                 // valida que Firebase carga antes de tocar el estado
-  const cod = String(codigo).trim().toLowerCase().replace(/\s+/g, '-');
+  await cargarAuth();
+  if (!usuario) throw new Error('Primero entra con Google para unirte al grupo');
+  const cod = normCodigo(codigo);
 
-  // ¿Ya hay alguien con mi mismo nombre en el grupo? Reclamo su lugar (evita duplicados
-  // cuando alguien reinstala la app o vuelve a unirse).
-  let idDestino = null;
+  S.unirGrupo(cod, usuario.uid);   // mi id pasa a ser mi uid de Google
   try {
-    const yo = S.perfil();
-    const norm = (n) => String(n || '').trim().toLowerCase();
-    const snap = await conTimeout(sdk.getDocs(colGrupo(cod)), 8000, 'timeout');
-    const match = snap.docs.find(d => norm(d.data().nombre) === norm(yo.nombre));
-    if (match) idDestino = match.id;
-  } catch (e) { /* si no puedo leer, sigo con mi id normal */ }
-
-  S.unirGrupo(cod, idDestino);
-  try {
-    // Subimos SIN atrapar el error: si no logra subir, el usuario tiene que saberlo
-    // (antes fallaba en silencio y parecía unido sin estarlo).
     await conTimeout(subirMiPerfil(), 10000,
-      'No pude conectar con la nube. Revisa tu internet (o si tu navegador bloquea conexiones) e inténtalo de nuevo.');
+      'No pude conectar con la nube. Revisa tu internet e inténtalo de nuevo.');
   } catch (e) {
-    S.salirGrupo();               // deshacemos para no quedar "medio unido"
+    S.salirGrupo();
     throw e;
   }
   await iniciar(alActualizar);
 }
 
-// Salir del grupo y cortar la sincronización.
 export function salir() {
   desuscribir?.(); desuscribir = null;
   quitarOyente?.(); quitarOyente = null;
@@ -132,11 +177,8 @@ export function salir() {
   S.salirGrupo();
 }
 
-// Prueba de conexión: intenta leer la colección del grupo. Lanza si algo falla
-// (config mala, Firestore sin crear, reglas cerradas, sin internet).
 export async function probar(codigo) {
-  await cargar();
-  const cod = String(codigo || S.grupoCodigo() || 'test').trim().toLowerCase().replace(/\s+/g, '-');
-  await sdk.getDocs(colGrupo(cod));
+  await cargarFirestore();
+  await sdk.getDocs(colGrupo(normCodigo(codigo || S.grupoCodigo() || 'test')));
   return true;
 }

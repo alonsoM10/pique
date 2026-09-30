@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=20';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=20';
-import * as Onb from './onboarding.js?v=20';
-import * as Hoy from './view-hoy.js?v=20';
-import * as Entreno from './view-entreno.js?v=20';
-import * as Comida from './view-comida.js?v=20';
-import * as Progreso from './view-progreso.js?v=20';
-import * as Pique from './view-pique.js?v=20';
-import * as Ayuda from './view-ayuda.js?v=20';
-import * as Exp from './exportar.js?v=20';
-import * as Nube from './nube.js?v=20';
+import * as S from './store.js?v=21';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=21';
+import * as Onb from './onboarding.js?v=21';
+import * as Hoy from './view-hoy.js?v=21';
+import * as Entreno from './view-entreno.js?v=21';
+import * as Comida from './view-comida.js?v=21';
+import * as Progreso from './view-progreso.js?v=21';
+import * as Pique from './view-pique.js?v=21';
+import * as Ayuda from './view-ayuda.js?v=21';
+import * as Exp from './exportar.js?v=21';
+import * as Nube from './nube.js?v=21';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -32,6 +32,43 @@ function abrirInvitacionSiHay() {
   invitacionPendiente = '';
   if (S.enGrupo()) { toast('Ya estás en el grupo ' + S.grupoCodigo()); return; }
   sheetGrupo(code);
+}
+
+// Arranca la sesión de Google (si había una guardada) y desde ahí la sincronización.
+// Migra los perfiles que venían con un id anónimo viejo a la cuenta de Google.
+async function arrancarNube() {
+  // Solo cargamos Firebase al arrancar si ya estás en un grupo o vuelves de un login;
+  // un usuario solo/local no paga esa carga.
+  let pend = null;
+  try { pend = localStorage.getItem('pique.pendingJoin'); } catch (e) {}
+  if (!S.enGrupo() && pend === null) return;
+
+  let u = null;
+  try {
+    await Nube.prepararAuth(() => { if (!enOnboarding) pintar(); }); // re-pinta al cambiar la sesión
+    u = Nube.usuarioActual();
+  } catch (e) { return; }
+
+  const repintar = () => { if (!enOnboarding) pintar(); };
+
+  if (S.enGrupo()) {
+    if (u && S.miPerfilId() !== u.uid) {
+      // el grupo venía con un id viejo (anónimo): re-unir con la cuenta migra los datos
+      Nube.unirse(S.grupoCodigo(), repintar).catch(() => {});
+    } else {
+      // con o sin login: mientras las reglas lo permitan, seguimos sincronizando
+      Nube.iniciar(repintar).catch(() => {});
+    }
+  }
+
+  // ¿Volvimos de un login por redirección que había dejado un "unirse" a medias?
+  try {
+    const pend = localStorage.getItem('pique.pendingJoin');
+    if (pend !== null && u && !S.enGrupo() && !enOnboarding) {
+      localStorage.removeItem('pique.pendingJoin');
+      sheetGrupo(pend);
+    }
+  } catch (e) { /* noop */ }
 }
 
 // ------------------------------------------------------------------ router
@@ -202,9 +239,12 @@ function linkInvitacion(codigo) {
   return location.origin + location.pathname + '?grupo=' + encodeURIComponent(codigo);
 }
 
-function sheetGrupo(codigoInicial = '') {
+async function sheetGrupo(codigoInicial = '') {
   const p = S.perfil();
+  try { await Nube.prepararAuth(); } catch (e) { /* seguimos igual */ }
+  const user = Nube.usuarioActual();
 
+  // --- Ya estás en un grupo: vista del grupo ---
   if (S.enGrupo()) {
     const yo = S.miPerfil();
     abrirSheet('Tu grupo', `
@@ -215,10 +255,12 @@ function sheetGrupo(codigoInicial = '') {
           <div class="divider"></div>
           <div class="row-b"><span class="small muted">Eres</span>
             <b class="small">${esc(S.avatar(yo))} ${esc(yo.nombre)}</b></div>
+          ${user ? `<div class="divider"></div>
+          <div class="row-b"><span class="small muted">Cuenta</span>
+            <b class="small">${esc(user.email || user.nombre)}</b></div>` : ''}
         </div>
         <p class="tiny dim" style="margin:0">
           Comparte el link o el código <b>${esc(S.grupoCodigo())}</b> y los demás se suman solos.
-          Lo que hagas (gym, comida, creatina) les aparece a ellos.
         </p>
         <button class="btn blue full" id="grInvitar">&#128279; Compartir link de invitación</button>
         <button class="btn ghost full sm" id="grProbar">Probar conexión</button>
@@ -230,7 +272,7 @@ function sheetGrupo(codigoInicial = '') {
         try {
           if (navigator.share) await navigator.share({ title: 'Pique', text: texto, url: link });
           else { await navigator.clipboard.writeText(link); toast('Link copiado — mándalo por WhatsApp'); }
-        } catch (e) { /* el usuario canceló el compartir */ }
+        } catch (e) { /* cancelado */ }
       };
       b.querySelector('#grProbar').onclick = async () => {
         const btn = b.querySelector('#grProbar');
@@ -250,21 +292,56 @@ function sheetGrupo(codigoInicial = '') {
     return;
   }
 
+  // --- No has entrado con Google: pedir login primero ---
+  if (!user) {
+    abrirSheet('Unirme a un grupo', `
+      <div class="stack">
+        <p class="small muted" style="margin:0">
+          Para verte con los demás, entra con tu cuenta de <b>Google</b> (un toque, sin contraseñas).
+        </p>
+        <button class="btn pri full" id="grGoogle">Entrar con Google</button>
+        <p class="tiny dim" style="margin:0">
+          Tus datos quedan ligados a tu cuenta: nunca se duplican y los tienes en cualquier teléfono.
+        </p>
+      </div>`, (b) => {
+      b.querySelector('#grGoogle').onclick = async () => {
+        const btn = b.querySelector('#grGoogle');
+        btn.textContent = 'Abriendo Google…'; btn.disabled = true;
+        try { localStorage.setItem('pique.pendingJoin', codigoInicial || ''); } catch (e) {}
+        try {
+          const u = await Nube.entrarConGoogle();
+          if (u) sheetGrupo(codigoInicial);   // popup ok → mostramos el formulario
+          // si u == null → se fue por redirección y volverá ya logueado
+        } catch (e) {
+          btn.textContent = 'Entrar con Google'; btn.disabled = false;
+          toast(e.message || 'No pude entrar con Google');
+        }
+      };
+    });
+    return;
+  }
+
+  // --- Logueado: formulario para unirse ---
   let emoji = p.emoji || '';
+  const nombreSug = (p.nombre && p.nombre !== 'Alonso') ? p.nombre : (user.nombre || p.nombre);
   abrirSheet('Unirme a un grupo', `
     <div class="stack">
+      <div class="card flat"><div class="row" style="gap:10px;align-items:center">
+        ${user.foto ? `<img src="${esc(user.foto)}" referrerpolicy="no-referrer" style="width:26px;height:26px;border-radius:99px">` : ''}
+        <span class="small" style="flex:1;min-width:0">Conectado como <b>${esc(user.email || user.nombre)}</b></span>
+      </div></div>
       <p class="small muted" style="margin:0">
         ${codigoInicial
-          ? `Te invitaron al grupo <b>${esc(codigoInicial)}</b>. Solo pon tu nombre y únete.`
-          : `Escribe el <b>mismo código</b> que tus amigos (ej: <i>primos</i>) y di quién eres. Desde ahí se ven todos y no tienes que crear a nadie a mano.`}
+          ? `Te invitaron al grupo <b>${esc(codigoInicial)}</b>. Solo confirma tu nombre y únete.`
+          : `Escribe el <b>mismo código</b> que tus amigos (ej: <i>familia</i>) y únete.`}
       </p>
       <div class="field">
         <label class="label">Código del grupo</label>
-        <input class="input" id="grCodigo" value="${esc(codigoInicial)}" placeholder="primos" autocomplete="off" autocapitalize="none">
+        <input class="input" id="grCodigo" value="${esc(codigoInicial)}" placeholder="familia" autocomplete="off" autocapitalize="none">
       </div>
       <div class="field">
         <label class="label">Tu nombre</label>
-        <input class="input" id="grNombre" value="${esc(p.nombre)}" placeholder="Tu nombre">
+        <input class="input" id="grNombre" value="${esc(nombreSug)}" placeholder="Tu nombre">
       </div>
       <div class="field">
         <label class="label">Tu avatar</label>
@@ -274,10 +351,6 @@ function sheetGrupo(codigoInicial = '') {
             style="font-size:18px">${e}</button>`).join('')}
         </div>
       </div>
-      <p class="tiny dim" style="margin:0">
-        Al entrar, los perfiles de práctica de este móvil se quitan y aparecen las personas
-        reales del grupo.
-      </p>
       <button class="btn pri full" id="grOk">Unirme al grupo</button>
     </div>`, (b) => {
     b.querySelectorAll('[data-emoji]').forEach(x => x.onclick = () => {
@@ -294,7 +367,6 @@ function sheetGrupo(codigoInicial = '') {
       const btn = b.querySelector('#grOk');
       btn.textContent = 'Conectando…'; btn.disabled = true;
 
-      // Fijo mi identidad en el perfil activo antes de subirlo.
       const yo = S.perfil();
       yo.nombre = nombre;
       yo.emoji = emoji;
@@ -302,6 +374,7 @@ function sheetGrupo(codigoInicial = '') {
 
       try {
         await Nube.unirse(codigo, () => { if (!enOnboarding) pintar(); });
+        try { localStorage.removeItem('pique.pendingJoin'); } catch (e) {}
         cerrarSheet();
         toast('¡Dentro del grupo! Ya se ven entre ustedes');
         ruta = 'pique';
@@ -427,7 +500,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=20');
+        const Gem = await import('./gemini.js?v=21');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -446,7 +519,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=20');
+        const Gem = await import('./gemini.js?v=21');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -531,8 +604,9 @@ function iniciar() {
   if (!S.perfil().onboarding) arrancarOnboarding();
   else pintar();
 
-  // Si este teléfono ya está en un grupo, arranca la sincronización con la nube.
-  if (S.enGrupo()) Nube.iniciar(() => { if (!enOnboarding) pintar(); }).catch(() => {});
+  // Login + sincronización con la nube. Prepara la sesión de Google (si había una guardada)
+  // y desde ahí arranca la sync, migra perfiles viejos a la cuenta y reanuda invitaciones.
+  arrancarNube();
 
   // Si llegó por link y ya está listo (sin onboarding), abrimos la ventana de unirse.
   abrirInvitacionSiHay();
