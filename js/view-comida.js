@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=23';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=23';
-import { buscarLocal } from './alimentos-cl.js?v=23';
+import * as S from './store.js?v=24';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=24';
+import { buscarLocal } from './alimentos-cl.js?v=24';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -52,7 +52,9 @@ export function render() {
     </div>
     <button class="btn full sm" id="btnPlato">&#127859; Plato casero (varios ingredientes)</button>
     <button class="btn full sm" id="btnFoto">&#128247; Foto del plato (IA)</button>
+    <button class="btn full sm" id="btnEtiqueta">&#127991;&#65039; Foto de la etiqueta nutricional (IA)</button>
     <input type="file" id="fotoPlato" accept="image/*" capture="environment" hidden>
+    <input type="file" id="fotoEtiqueta" accept="image/*" capture="environment" hidden>
 
     <div class="sec-title">Registrado hoy</div>
     ${t.items.length ? gruposRegistrado(p, t.items) :
@@ -174,6 +176,17 @@ export function mount(root, ir, rerender) {
     const f = inputFoto.files && inputFoto.files[0];
     if (f) sheetFotoPlato(f, rerender);
   };
+
+  const inputEtiqueta = root.querySelector('#fotoEtiqueta');
+  root.querySelector('#btnEtiqueta').onclick = () => {
+    if (!S.iaFotoLista()) return sheetFotoSinClave();
+    inputEtiqueta.value = '';
+    inputEtiqueta.click();
+  };
+  inputEtiqueta.onchange = () => {
+    const f = inputEtiqueta.files && inputEtiqueta.files[0];
+    if (f) sheetFotoEtiqueta(f, rerender);
+  };
   root.querySelector('#importarIA').onclick = () => sheetImportarIA(rerender);
   root.querySelector('#opcionesMinuta')?.addEventListener('click', () => sheetOpcionesMinuta(rerender));
   root.querySelector('#minutaPdf').onclick = () => sheetMinutaPdf(rerender);
@@ -289,7 +302,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=23');
+      Gem = await import('./gemini.js?v=24');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -369,6 +382,37 @@ function sheetFotoPlato(file, rerender) {
     };
 
     analizar();
+  });
+}
+
+// Lee la tabla nutricional de una etiqueta y abre la hoja de porción con los datos cargados.
+function sheetFotoEtiqueta(file, rerender) {
+  abrirSheet('Etiqueta nutricional', `
+    <div class="stack">
+      <div id="etEstado" class="center" style="padding:18px 0">
+        <div class="small muted">Leyendo la etiqueta con IA…</div>
+        <div class="tiny dim" style="margin-top:6px">Apunta bien a la tabla nutricional</div>
+      </div>
+    </div>`, async (b) => {
+    const estado = b.querySelector('#etEstado');
+    const fallo = (msg) => {
+      estado.innerHTML = `<div class="small" style="color:var(--w)">${esc(msg)}</div>
+        <button class="btn ghost full sm" id="etCerrar" style="margin-top:12px">Cerrar</button>`;
+      b.querySelector('#etCerrar').onclick = () => cerrarSheet();
+    };
+    let prod;
+    try {
+      const Gem = await import('./gemini.js?v=24');
+      const base64 = await Gem.comprimirImagen(file);
+      prod = await Gem.analizarEtiqueta(base64);
+    } catch (e) {
+      return fallo(e.message || 'No pude leer la etiqueta');
+    }
+    if (!prod.por100.kcal) {
+      return fallo('No encontré la tabla nutricional en la foto. Prueba otra más nítida y de cerca.');
+    }
+    // Pasamos a la hoja de porción con los valores ya cargados (editables) + los gramos.
+    sheetPorcion({ codigo: '', nombre: prod.nombre, por100: prod.por100 }, rerender, true);
   });
 }
 

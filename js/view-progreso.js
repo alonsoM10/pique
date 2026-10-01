@@ -1,8 +1,8 @@
 // view-progreso.js — peso, medidas y proyección hacia el objetivo.
 
-import * as S from './store.js?v=23';
-import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras } from './ui.js?v=23';
-import { sheetPeso } from './view-hoy.js?v=23';
+import * as S from './store.js?v=24';
+import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras } from './ui.js?v=24';
+import { sheetPeso } from './view-hoy.js?v=24';
 
 let rango = 90; // días visibles en el gráfico
 

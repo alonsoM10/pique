@@ -1,7 +1,7 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=23';
+import * as S from './store.js?v=24';
 
 // Probamos varios modelos en orden: si uno está saturado ("high demand"), pasamos al
 // siguiente. 'gemini-flash-latest' es el más nuevo; los otros son estables de respaldo.
@@ -105,6 +105,30 @@ function leerJson(txt) {
 export async function analizarPlato(base64, pista = '') {
   if (S.workerUrl()) return analizarConWorker(base64, pista);
   return analizarConGemini(base64, pista);
+}
+
+// Lee la TABLA NUTRICIONAL de la foto de una etiqueta y devuelve los valores por 100 g.
+// Devuelve { nombre, por100: { kcal, prot, carb, gras } }, listo para la hoja de porción.
+export async function analizarEtiqueta(base64) {
+  const key = S.geminiKey();
+  if (!key) throw new Error('Configura la foto del plato en Ajustes');
+
+  const prompt = `Lee la TABLA DE INFORMACIÓN NUTRICIONAL de esta foto de un producto.
+Devuelve SOLO un JSON con los valores POR CADA 100 g (o 100 ml) del producto:
+{"nombre": "nombre del producto si se ve, si no \\"\\"", "kcal": number, "prot": number, "carb": number, "gras": number}
+- Si la tabla solo muestra "por porción", conviértelo a por 100 g usando el tamaño de porción indicado.
+- kcal por 100 g (entero); prot, carb, gras en gramos por 100 g.
+Si no hay una tabla nutricional en la foto, responde {"nombre":"","kcal":0,"prot":0,"carb":0,"gras":0}.`;
+
+  const txt = await llamar(key, [
+    { text: prompt },
+    { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+  ]);
+  const d = leerJson(txt);
+  return {
+    nombre: d.nombre === 'Plato' ? '' : d.nombre,
+    por100: { kcal: d.kcal, prot: d.prot, carb: d.carb, gras: d.gras },
+  };
 }
 
 // --- Cloudflare Worker (modelo open source, la clave vive en el servidor) ---
