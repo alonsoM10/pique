@@ -1,7 +1,7 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js?v=24';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=24';
+import * as S from './store.js?v=25';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=25';
 
 // Recordatorio de comida: si lo cierras, no vuelve a salir esa comida en esta sesión.
 function recordatorioOculto(hoy, id) {

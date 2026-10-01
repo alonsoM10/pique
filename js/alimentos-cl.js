@@ -71,6 +71,7 @@ export const ALIMENTOS_CL = [
   { nombre: 'Quesillo', kcal: 98, prot: 11, carb: 3.4, gras: 4.3 },
   { nombre: 'Queso mantecoso', kcal: 380, prot: 24, carb: 1, gras: 31 },
   { nombre: 'Mantequilla', kcal: 717, prot: 0.9, carb: 0.1, gras: 81 },
+  { nombre: 'Mantequilla de maní', kcal: 588, prot: 25, carb: 20, gras: 50, alias: 'mani cacahuete crema de mani' },
 
   // --- Cereales, legumbres y básicos ---
   { nombre: 'Arroz cocido', kcal: 130, prot: 2.7, carb: 28, gras: 0.3 },

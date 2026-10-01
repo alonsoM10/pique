@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=24';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=24';
-import { buscarLocal } from './alimentos-cl.js?v=24';
+import * as S from './store.js?v=25';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=25';
+import { buscarLocal } from './alimentos-cl.js?v=25';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -302,7 +302,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=24');
+      Gem = await import('./gemini.js?v=25');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -402,7 +402,7 @@ function sheetFotoEtiqueta(file, rerender) {
     };
     let prod;
     try {
-      const Gem = await import('./gemini.js?v=24');
+      const Gem = await import('./gemini.js?v=25');
       const base64 = await Gem.comprimirImagen(file);
       prod = await Gem.analizarEtiqueta(base64);
     } catch (e) {
@@ -1158,14 +1158,40 @@ function leerComidaSel(b, p) {
 // tabla chilena. Si algo no está en la tabla, hay un atajo para pedírselo a una IA (pegar
 // respuesta). Lo pediste para comida sin código de barras: feria, JUNAEB, comida de casa.
 
+// Medidas caseras y sus gramos aproximados (densidad ~1 para cucharas; taza para líquidos).
+const MEDIDAS_CASERAS = [
+  [/\bcucharaditas?\b|\bcdtas?\b/i, 5],
+  [/\bcucharadas?\b|\bcdas?\b/i, 15],
+  [/\btazas?\b/i, 240],
+  [/\bpu[ñn]ados?\b/i, 30],
+  [/\bvasos?\b/i, 200],
+];
+
 function parsearIngredientes(texto) {
-  return texto.split(/[\n;,]+/).map(s => s.trim()).filter(Boolean).map(tr => {
-    const m = /(\d+(?:[.,]\d+)?)\s*(?:kg|g|gr|grs|gramos)?/i.exec(tr);
-    let gramos = m ? parseFloat(m[1].replace(',', '.')) : null;
-    if (m && /kg/i.test(m[0])) gramos *= 1000;
-    if (gramos != null) gramos = Math.round(gramos);
-    let nombre = m ? (tr.slice(0, m.index) + ' ' + tr.slice(m.index + m[0].length)) : tr;
-    nombre = nombre.replace(/\bde\b/gi, ' ').replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  // "1,5" (decimal con coma) -> "1.5" para no confundirlo con la coma que separa ingredientes.
+  return texto.replace(/(\d),(\d)/g, '$1.$2').split(/[\n;,]+/).map(s => s.trim()).filter(Boolean).map(tr => {
+    const mNum = /(\d+(?:[.,]\d+)?)/.exec(tr);
+    const cant = mNum ? parseFloat(mNum[1].replace(',', '.')) : null;
+
+    // 1) ¿medida casera? (1 cucharadita, 2 cucharadas, media taza…)
+    let gramos = null;
+    for (const [re, factor] of MEDIDAS_CASERAS) {
+      if (re.test(tr)) { gramos = Math.round((cant != null ? cant : 1) * factor); break; }
+    }
+    // 2) si no, gramos directos (con o sin "g"/"kg")
+    if (gramos == null) {
+      const mg = /(\d+(?:[.,]\d+)?)\s*(kg|g|gr|grs|gramos)?/i.exec(tr);
+      if (mg) {
+        gramos = parseFloat(mg[1].replace(',', '.'));
+        if (/kg/i.test(mg[0])) gramos *= 1000;
+        gramos = Math.round(gramos);
+      }
+    }
+
+    const nombre = tr
+      .replace(/\d+(?:[.,]\d+)?/g, ' ')
+      .replace(/\b(kg|g|gr|grs|gramos|cucharaditas?|cdtas?|cucharadas?|cdas?|tazas?|pu[ñn]ados?|vasos?|de|media|medio)\b/gi, ' ')
+      .replace(/[^\p{L}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
     return { gramos, nombre, crudo: tr };
   }).filter(i => i.nombre);
 }
@@ -1415,9 +1441,12 @@ function sheetPorcion(prod, rerender, editable = false) {
         <input class="input num" id="pG" type="number" inputmode="numeric" value="100" style="font-size:22px;padding:13px">
       </div>
       <div class="chips" style="justify-content:center">
-        ${[30, 50, 100, 150, 200, 250, 300].map(g =>
-          `<button class="chip" data-g="${g}">${g} g</button>`).join('')}
+        ${[
+          ['1 cdta', 5], ['1 cda', 15], ['½ taza', 120], ['1 taza', 240], ['1 puñado', 30],
+          ['50 g', 50], ['100 g', 100], ['150 g', 150], ['200 g', 200],
+        ].map(([l, g]) => `<button class="chip" data-g="${g}">${l}</button>`).join('')}
       </div>
+      <p class="tiny dim center" style="margin:-4px 0 0">cdta=cucharadita · cda=cucharada (aprox., ajústalo si quieres)</p>
 
       ${selectComida(p)}
       <div class="card flat" id="resu"></div>
