@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=25';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=25';
-import { buscarLocal } from './alimentos-cl.js?v=25';
+import * as S from './store.js?v=26';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=26';
+import { buscarLocal } from './alimentos-cl.js?v=26';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -51,6 +51,7 @@ export function render() {
       <button class="btn" id="btnBuscar">&#128269; Buscar</button>
     </div>
     <button class="btn full sm" id="btnPlato">&#127859; Plato casero (varios ingredientes)</button>
+    <button class="btn full sm" id="btnRecetas">&#128214; Mis recetas</button>
     <button class="btn full sm" id="btnFoto">&#128247; Foto del plato (IA)</button>
     <button class="btn full sm" id="btnEtiqueta">&#127991;&#65039; Foto de la etiqueta nutricional (IA)</button>
     <input type="file" id="fotoPlato" accept="image/*" capture="environment" hidden>
@@ -163,6 +164,7 @@ export function mount(root, ir, rerender) {
   root.querySelector('#btnScan').onclick = () => sheetEscaner(rerender);
   root.querySelector('#btnBuscar').onclick = () => sheetBuscar(rerender);
   root.querySelector('#btnPlato').onclick = () => sheetPlatoCasero(rerender);
+  root.querySelector('#btnRecetas').onclick = () => sheetRecetas(rerender);
 
   const inputFoto = root.querySelector('#fotoPlato');
   root.querySelector('#btnFoto').onclick = () => {
@@ -302,7 +304,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=25');
+      Gem = await import('./gemini.js?v=26');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -402,7 +404,7 @@ function sheetFotoEtiqueta(file, rerender) {
     };
     let prod;
     try {
-      const Gem = await import('./gemini.js?v=25');
+      const Gem = await import('./gemini.js?v=26');
       const base64 = await Gem.comprimirImagen(file);
       prod = await Gem.analizarEtiqueta(base64);
     } catch (e) {
@@ -1231,6 +1233,7 @@ function sheetPlatoCasero(rerender) {
       ${selectComida(p)}
       <div class="card flat" id="pcResu"><div class="tiny dim">Escribe arriba para calcular…</div></div>
       <button class="btn pri full xl" id="pcOk" disabled>Agregar al día</button>
+      <button class="btn ghost full sm" id="pcReceta" disabled>&#128214; Guardar como receta</button>
 
       <details style="margin-top:2px">
         <summary class="tiny dim" style="cursor:pointer">¿Un alimento no está en la lista? Calcúlalo con una IA</summary>
@@ -1245,13 +1248,14 @@ function sheetPlatoCasero(rerender) {
     const ta = b.querySelector('#pcTexto');
     const resu = b.querySelector('#pcResu');
     const ok = b.querySelector('#pcOk');
+    const btnReceta = b.querySelector('#pcReceta');
     let total = null, ings = [];
 
     const calc = () => {
       ings = parsearIngredientes(ta.value);
       if (!ings.length) {
         resu.innerHTML = '<div class="tiny dim">Escribe arriba para calcular…</div>';
-        ok.disabled = true; total = null; return;
+        ok.disabled = true; btnReceta.disabled = true; total = null; return;
       }
       let kcal = 0, prot = 0, carb = 0, gras = 0; const faltan = [];
       const detalle = ings.map(i => {
@@ -1271,7 +1275,7 @@ function sheetPlatoCasero(rerender) {
         <div class="row-b"><span class="small">Total</span>
           <span style="font-size:19px;font-weight:750">${num(total.kcal)} kcal</span></div>
         <div class="tiny dim">P ${num(total.prot)} · C ${num(total.carb)} · G ${num(total.gras)} g${faltan.length ? ` · ${faltan.length} sin datos (usa la IA abajo)` : ''}</div>`;
-      ok.disabled = false;
+      ok.disabled = false; btnReceta.disabled = false;
     };
     ta.oninput = calc;
 
@@ -1283,7 +1287,7 @@ function sheetPlatoCasero(rerender) {
     b.querySelector('#pcUsarIA').onclick = () => {
       const m = parsearMacrosIA(b.querySelector('#pcIA').value);
       if (!m) return toast('Formato: Kcal | Prot | Carbo | Grasa');
-      total = m; ok.disabled = false;
+      total = m; ok.disabled = false; btnReceta.disabled = false;
       resu.innerHTML = `<div class="row-b"><span class="small">Total (IA)</span>
           <span style="font-size:19px;font-weight:750">${num(m.kcal)} kcal</span></div>
         <div class="tiny dim">P ${num(m.prot)} · C ${num(m.carb)} · G ${num(m.gras)} g</div>`;
@@ -1301,6 +1305,135 @@ function sheetPlatoCasero(rerender) {
       });
       cerrarSheet();
       toast('Plato agregado');
+      rerender();
+    };
+
+    btnReceta.onclick = () => {
+      if (!total) return;
+      const nombre = b.querySelector('#pcNombre').value.trim();
+      guardarComoReceta(nombre, ings, total, rerender);
+    };
+    calc();
+  });
+}
+
+// ------------------------------------------------------------------ recetas
+//
+// Guardas una receta (del plato casero) y después, al comerla, dices cuánto pesa cocinada
+// en total y cuánto te comiste; la app divide. Ej: panqueques: 300 g cocinado, comí 20 g.
+
+function guardarComoReceta(nombre, ings, total, rerender) {
+  abrirSheet('Guardar receta', `
+    <div class="stack">
+      <div class="field"><label class="label">Nombre de la receta</label>
+        <input class="input" id="grNom" value="${esc(nombre || '')}" placeholder="Panqueques proteicos"></div>
+      <div class="field"><label class="label">¿Cuánto pesa ya cocinado en total? (g) &mdash; opcional</label>
+        <input class="input num" id="grPeso" type="number" inputmode="numeric" placeholder="ej: 300"></div>
+      <div class="card flat">
+        <div class="tiny">Total de la receta: <b>${num(total.kcal)} kcal</b> · P${num(total.prot)} C${num(total.carb)} G${num(total.gras)}</div>
+      </div>
+      <p class="tiny dim" style="margin:0">Después, al comerla, dices cuánto te comiste y la app calcula esa porción.</p>
+      <button class="btn pri full" id="grOk">Guardar receta</button>
+    </div>`, (b) => {
+    b.querySelector('#grOk').onclick = () => {
+      const nom = b.querySelector('#grNom').value.trim();
+      if (!nom) return toast('Ponle nombre a la receta');
+      S.crearReceta({
+        nombre: nom,
+        ingredientes: ings.map(i => ({ nombre: i.nombre, gramos: i.gramos })),
+        kcal: total.kcal, prot: total.prot, carb: total.carb, gras: total.gras,
+        pesoCocinado: Number(b.querySelector('#grPeso').value) || null,
+      });
+      cerrarSheet();
+      toast('Receta guardada');
+      rerender();
+    };
+  });
+}
+
+function sheetRecetas(rerender) {
+  const p = S.perfil();
+  const recetas = p.recetas || [];
+  abrirSheet('Mis recetas', `
+    <div class="stack">
+      ${recetas.length ? `<div class="list">
+        ${recetas.map(r => `
+          <div class="item">
+            <button data-usar="${r.id}" style="flex:1;min-width:0;background:none;border:0;text-align:left;cursor:pointer">
+              <div class="item-t">${esc(r.nombre)}</div>
+              <div class="item-s">${num(r.kcal)} kcal total${r.pesoCocinado ? ` · rinde ${num(r.pesoCocinado)} g` : ''}</div>
+            </button>
+            <button class="btn danger sm" data-del="${r.id}">&#10005;</button>
+          </div>`).join('')}
+      </div>` : '<div class="empty">Aún no tienes recetas. Arma un <b>plato casero</b> y toca "Guardar como receta".</div>'}
+      <button class="btn pri full" id="recNueva">+ Nueva receta (plato casero)</button>
+    </div>`, (b) => {
+    b.querySelectorAll('[data-usar]').forEach(x => x.onclick = () =>
+      sheetUsarReceta(recetas.find(r => r.id === x.dataset.usar), rerender));
+    b.querySelectorAll('[data-del]').forEach(x => x.onclick = async () => {
+      const r = recetas.find(y => y.id === x.dataset.del);
+      if (!await confirmar('Borrar receta', `Se borra "${r ? r.nombre : ''}".`, 'Borrar')) return;
+      S.borrarReceta(x.dataset.del);
+      rerender();
+      sheetRecetas(rerender);
+    });
+    b.querySelector('#recNueva').onclick = () => sheetPlatoCasero(rerender);
+  });
+}
+
+function sheetUsarReceta(r, rerender) {
+  if (!r) return;
+  const p = S.perfil();
+  abrirSheet(r.nombre, `
+    <div class="stack">
+      <div class="card flat">
+        <div class="tiny">Receta completa: <b>${num(r.kcal)} kcal</b> · P${num(r.prot)} C${num(r.carb)} G${num(r.gras)}</div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label class="label">Pesa cocinado (g)</label>
+          <input class="input num" id="urCoc" type="number" inputmode="numeric" value="${r.pesoCocinado || ''}" placeholder="300"></div>
+        <div class="field"><label class="label">¿Cuánto comiste? (g)</label>
+          <input class="input num" id="urCom" type="number" inputmode="numeric" placeholder="150"></div>
+      </div>
+      <button class="btn ghost full sm" id="urTodo">Me comí la receta completa</button>
+      ${selectComida(p)}
+      <div class="card flat" id="urResu"><div class="tiny dim">Pon cuánto pesa cocinado y cuánto comiste.</div></div>
+      <button class="btn pri full xl" id="urOk" disabled>Registrar</button>
+    </div>`, (b) => {
+    const coc = b.querySelector('#urCoc'), com = b.querySelector('#urCom');
+    const resu = b.querySelector('#urResu'), ok = b.querySelector('#urOk');
+    let escalado = null;
+
+    const calc = () => {
+      const c = Number(coc.value) || 0, e = Number(com.value) || 0;
+      if (!c || !e) { resu.innerHTML = '<div class="tiny dim">Pon cuánto pesa cocinado y cuánto comiste.</div>'; ok.disabled = true; escalado = null; return; }
+      const f = e / c;
+      escalado = { kcal: Math.round(r.kcal * f), prot: Math.round(r.prot * f), carb: Math.round(r.carb * f), gras: Math.round(r.gras * f) };
+      resu.innerHTML = `<div class="row-b"><span class="small">Vas a registrar</span>
+          <span style="font-size:19px;font-weight:750">${num(escalado.kcal)} kcal</span></div>
+        <div class="tiny dim">P ${num(escalado.prot)} · C ${num(escalado.carb)} · G ${num(escalado.gras)} g · ${Math.round(f * 100)}% de la receta</div>`;
+      ok.disabled = false;
+    };
+    coc.oninput = calc; com.oninput = calc;
+
+    b.querySelector('#urTodo').onclick = () => {
+      if (!Number(coc.value)) coc.value = r.pesoCocinado || 100;
+      com.value = coc.value; calc();
+    };
+
+    b.querySelector('#urOk').onclick = () => {
+      if (!escalado) return;
+      // si puso el peso cocinado y la receta no lo tenía (o cambió), lo guardamos para la próxima
+      const c = Number(coc.value) || 0;
+      if (c && r.pesoCocinado !== c) { r.pesoCocinado = c; S.crearReceta(r); }
+      const sel = leerComidaSel(b, p);
+      S.registrarAlimento({
+        nombre: r.nombre, gramos: Number(com.value) || null,
+        kcal: escalado.kcal, prot: escalado.prot, carb: escalado.carb, gras: escalado.gras,
+        comidaId: sel.comidaId, comidaNombre: sel.comidaNombre,
+      });
+      cerrarSheet();
+      toast('Registrado');
       rerender();
     };
     calc();

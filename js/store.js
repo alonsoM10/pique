@@ -90,7 +90,27 @@ const perfilNuevo = (nombre, color) => ({
   marcadas: {},   // { 'YYYY-MM-DD': { comidaId: true } }
   registroComida: [], // { id, fecha, nombre, kcal, prot, carb, gras, gramos, codigo }
   creatina: {},   // { 'YYYY-MM-DD': true } — días que se tomó la creatina
+  recetas: [],    // { id, nombre, ingredientes:[{nombre,gramos}], kcal, prot, carb, gras, pesoCocinado }
 });
+
+// ---------------------------------------------------------------- recetas
+// Una receta guarda sus ingredientes y los totales. Al comerla dices cuánto pesa cocinada
+// en total y cuánto te comiste, y la app divide (ej: 300 g cocinado, comiste 20 g).
+
+export function crearReceta(r) {
+  const p = perfil();
+  p.recetas = p.recetas || [];
+  r.id = r.id || uid();
+  const i = p.recetas.findIndex(x => x.id === r.id);
+  if (i >= 0) p.recetas[i] = r; else p.recetas.push(r);
+  save();
+  return r;
+}
+export function borrarReceta(id) {
+  const p = perfil();
+  p.recetas = (p.recetas || []).filter(x => x.id !== id);
+  save();
+}
 
 const estadoInicial = () => {
   const a = perfilNuevo('Alonso', '#4ade80');
