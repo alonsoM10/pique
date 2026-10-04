@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=29';
-import { esc, num, anillo } from './ui.js?v=29';
+import * as S from './store.js?v=30';
+import { esc, num, anillo } from './ui.js?v=30';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [
@@ -132,7 +132,7 @@ function actividadHtml(gente) {
           const creatina = S.tomoCreatina(hoy, p);
           return `<div class="row" style="gap:10px;align-items:center">
             <span style="width:30px;height:30px;border-radius:99px;display:grid;place-items:center;flex:none;
-              background:${p.color};color:#07130c;font-weight:800">${esc(S.avatar(p))}</span>
+              background:${S.colorPersona(p)};color:#0a0a0b;font-weight:800">${esc(S.avatar(p))}</span>
             <span style="flex:1;min-width:0;font-weight:600" class="small">${esc(p.nombre)}</span>
             <span class="row" style="gap:5px;flex:none">
               ${chip(entreno, '🏋️ gym')}
@@ -183,7 +183,7 @@ function renderDuelo(a, b, s) {
         <div class="row" style="justify-content:center;gap:18px;margin-top:11px">
           <div class="center" style="flex:1">
             <div style="width:46px;height:46px;border-radius:99px;margin:0 auto 7px;display:grid;place-items:center;
-              background:${a.color};color:#07130c;font-weight:800;font-size:19px">${esc(S.avatar(a))}</div>
+              background:${S.colorPersona(a)};color:#0a0a0b;font-weight:800;font-size:19px">${esc(S.avatar(a))}</div>
             <div class="small" style="font-weight:650">${esc(a.nombre)}</div>
           </div>
           <div class="center" style="flex:none">
@@ -193,12 +193,12 @@ function renderDuelo(a, b, s) {
           </div>
           <div class="center" style="flex:1">
             <div style="width:46px;height:46px;border-radius:99px;margin:0 auto 7px;display:grid;place-items:center;
-              background:${b.color};color:#06182b;font-weight:800;font-size:19px">${esc(S.avatar(b))}</div>
+              background:${S.colorPersona(b)};color:#0a0a0b;font-weight:800;font-size:19px">${esc(S.avatar(b))}</div>
             <div class="small" style="font-weight:650">${esc(b.nombre)}</div>
           </div>
         </div>
         <div class="small muted" style="margin-top:13px">
-          ${lider ? `<b style="color:${lider.color}">${esc(lider.nombre)}</b> va por delante`
+          ${lider ? `<b style="color:${S.colorPersona(lider)}">${esc(lider.nombre)}</b> va por delante`
             : 'Empate técnico. Se decide esta semana.'}
         </div>
       </div>
@@ -218,14 +218,14 @@ function renderDuelo(a, b, s) {
         ${[[a, va, vb], [b, vb, va]].map(([p, v, o]) => `
           <div style="margin-bottom:9px">
             <div class="row-b" style="margin-bottom:4px">
-              <span class="small" style="font-weight:${gana(v, o) ? 700 : 500};color:${gana(v, o) ? p.color : 'var(--tx-2)'}">
+              <span class="small" style="font-weight:${gana(v, o) ? 700 : 500};color:${gana(v, o) ? S.colorPersona(p) : 'var(--tx-2)'}">
                 ${gana(v, o) ? '&#9733; ' : ''}${esc(p.nombre)}
               </span>
               <span style="font-weight:750;font-variant-numeric:tabular-nums;font-size:15px">
                 ${v == null ? '—' : num(v) + m.suf}
               </span>
             </div>
-            ${barra(v, p.color)}
+            ${barra(v, S.colorPersona(p))}
           </div>`).join('')}
         <div class="tiny dim" style="margin-top:2px">${m.sub(a)}</div>
       </div>`;
@@ -271,7 +271,7 @@ function renderRanking(gente, s) {
               ${i < 3 ? medalla[i] : `<b class="dim">${i + 1}</b>`}
             </span>
             <span style="width:36px;height:36px;border-radius:99px;display:grid;place-items:center;flex:none;
-              background:${p.color};color:#07130c;font-weight:800">${esc(S.avatar(p))}</span>
+              background:${S.colorPersona(p)};color:#0a0a0b;font-weight:800">${esc(S.avatar(p))}</span>
             <span style="flex:1;min-width:0;font-weight:650">${esc(p.nombre)}</span>
             <span style="font-weight:800;font-size:17px;font-variant-numeric:tabular-nums">${puntos.get(p.id)}</span>
           </div>`).join('')}
@@ -295,14 +295,14 @@ function renderRanking(gente, s) {
           <div style="margin-bottom:9px">
             <div class="row-b" style="margin-bottom:4px">
               <span class="small" style="font-weight:${esGanadorSolo(p.id) ? 700 : 500};
-                color:${esGanadorSolo(p.id) ? p.color : 'var(--tx-2)'}">
+                color:${esGanadorSolo(p.id) ? S.colorPersona(p) : 'var(--tx-2)'}">
                 ${esGanadorSolo(p.id) ? '&#9733; ' : ''}${esc(p.nombre)}
               </span>
               <span style="font-weight:750;font-variant-numeric:tabular-nums;font-size:15px">
                 ${v == null ? '—' : num(v) + m.suf}
               </span>
             </div>
-            <div class="bar" style="height:9px"><i style="width:${((v || 0) / max) * 100}%;background:${p.color}"></i></div>
+            <div class="bar" style="height:9px"><i style="width:${((v || 0) / max) * 100}%;background:${S.colorPersona(p)}"></i></div>
           </div>`).join('')}
         <div class="tiny dim" style="margin-top:2px">${m.sub(gente[0])}</div>
       </div>`;

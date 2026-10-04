@@ -1,11 +1,12 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=29';
+import * as S from './store.js?v=30';
 
-// Probamos varios modelos en orden: si uno está saturado ("high demand"), pasamos al
-// siguiente. 'gemini-flash-latest' es el más nuevo; los otros son estables de respaldo.
-const MODELOS = ['gemini-flash-latest', 'gemini-3.6-flash', 'gemini-flash-lite-latest'];
+// Probamos varios modelos en orden: si uno está saturado o no existe, pasamos al siguiente.
+// Los alias (*-latest) apuntan siempre al modelo vigente, así no se quedan obsoletos.
+// (Verificado oct-2026: Gemini 3 y 2.5 vigentes; 2.0 quedó obsoleto.)
+const MODELOS = ['gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
 const URL = (key, modelo) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(key)}`;
 
@@ -60,6 +61,8 @@ async function llamarModelo(key, modelo, partes) {
     const e = new Error(msg);
     e.status = r.status;
     e.sobrecarga = esSobrecarga(r.status, msg);
+    // Modelo inexistente / sin acceso con esta clave: hay que probar el siguiente modelo.
+    e.modeloMalo = r.status === 404 || /not found|not supported|does not exist|no longer/i.test(msg);
     throw e;
   }
   const j = await r.json();
@@ -77,8 +80,11 @@ async function llamar(key, partes) {
         return await llamarModelo(key, modelo, partes);
       } catch (e) {
         ultimo = e;
-        // Errores no recuperables (clave mala, etc.): cortamos con mensaje claro.
-        if (e.status === 400 && /API key/i.test(e.message)) throw new Error('La clave no es válida');
+        // Clave mala: cortamos con mensaje claro.
+        if (e.status === 400 && /API key/i.test(e.message)) throw new Error('La clave de Gemini no es válida. Pégala de nuevo en Ajustes.');
+        // Modelo inexistente / sin acceso: pasamos al siguiente modelo de la lista.
+        if (e.modeloMalo) break;
+        // Otro error no recuperable (p. ej. permisos): cortamos.
         if (!e.sobrecarga) throw e;
         // Saturado: reintenta el mismo modelo una vez; si no, pasa al siguiente.
         if (intento === 0) { await espera(1200); continue; }
@@ -89,6 +95,10 @@ async function llamar(key, partes) {
   // Si lo último fue un error de red (sin status HTTP), es más bien conexión.
   if (ultimo && !ultimo.status) {
     throw new Error('No pude conectar con la IA. Revisa tu internet e inténtalo de nuevo.');
+  }
+  // Ningún modelo respondió por no existir / sin acceso con esta clave.
+  if (ultimo && ultimo.modeloMalo) {
+    throw new Error('Tu clave de Gemini no tiene acceso a los modelos de foto ahora. Crea una clave nueva en aistudio.google.com/apikey o usa "Plato casero" por gramos.');
   }
   throw new Error('La IA está saturada ahora mismo. Prueba en un rato, o usa "Plato casero" por gramos mientras tanto.');
 }

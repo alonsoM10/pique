@@ -295,6 +295,20 @@ export function crearPerfil(nombre, emoji = '') {
 // Lo que se muestra en el círculo del avatar: el emoji si lo eligió, si no la inicial.
 export const avatar = (p) => (p && p.emoji) ? p.emoji : ((p?.nombre?.[0] || '?').toUpperCase());
 
+// Color para pintar a cada persona (avatar, barras, marcador). TÚ siempre vas en amarillo
+// —el color de la marca—; los demás reciben un color estable de una paleta de gym, sin el
+// verde pastoso viejo, para que todo combine con el tema negro+amarillo.
+const COLORES_PIQUE = ['#fb923c', '#f87171', '#a78bfa', '#38bdf8', '#2dd4bf', '#f472b6', '#facc15'];
+export function colorPersona(p) {
+  if (!p) return '#ffd60a';
+  const s = load();
+  if (p.id === s.miPerfilId || p.id === s.perfilActivo) return '#ffd60a';
+  let h = 0;
+  const id = String(p.id || p.nombre || '');
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return COLORES_PIQUE[h % COLORES_PIQUE.length];
+}
+
 export function eliminarPerfil(id) {
   const s = load();
   if (s.perfiles.length <= 1) return false; // siempre queda al menos uno

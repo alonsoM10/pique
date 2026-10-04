@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=29';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=29';
-import * as Onb from './onboarding.js?v=29';
-import * as Hoy from './view-hoy.js?v=29';
-import * as Entreno from './view-entreno.js?v=29';
-import * as Comida from './view-comida.js?v=29';
-import * as Progreso from './view-progreso.js?v=29';
-import * as Pique from './view-pique.js?v=29';
-import * as Ayuda from './view-ayuda.js?v=29';
-import * as Exp from './exportar.js?v=29';
-import * as Nube from './nube.js?v=29';
+import * as S from './store.js?v=30';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=30';
+import * as Onb from './onboarding.js?v=30';
+import * as Hoy from './view-hoy.js?v=30';
+import * as Entreno from './view-entreno.js?v=30';
+import * as Comida from './view-comida.js?v=30';
+import * as Progreso from './view-progreso.js?v=30';
+import * as Pique from './view-pique.js?v=30';
+import * as Ayuda from './view-ayuda.js?v=30';
+import * as Exp from './exportar.js?v=30';
+import * as Nube from './nube.js?v=30';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -205,8 +205,8 @@ function pintarPerfil() {
   const p = S.perfil();
   $('#whoName').textContent = p.nombre;
   $('#whoAvatar').textContent = S.avatar(p);
-  $('#whoAvatar').style.background = p.color;
-  $('#whoAvatar').style.color = p.color === '#60a5fa' ? '#06182b' : '#08120d';
+  $('#whoAvatar').style.background = S.colorPersona(p);
+  $('#whoAvatar').style.color = '#0a0a0b';
 }
 
 // ------------------------------------------------------------------ perfiles
@@ -221,7 +221,7 @@ function sheetPerfiles() {
             <button data-p="${p.id}" style="flex:1;min-width:0;display:flex;align-items:center;gap:11px;
               background:none;border:0;padding:0;text-align:left;cursor:pointer">
               <span style="width:32px;height:32px;border-radius:99px;display:grid;place-items:center;flex:none;
-                background:${p.color};color:#07130c;font-weight:800">${esc(S.avatar(p))}</span>
+                background:${S.colorPersona(p)};color:#0a0a0b;font-weight:800">${esc(S.avatar(p))}</span>
               <span style="flex:1;min-width:0">
                 <span class="item-t" style="display:block">${esc(p.nombre)}</span>
                 <span class="item-s">${p.onboarding ? `${p.sesiones.length} entrenos · ${S.racha(p)} d de racha` : 'sin configurar'}</span>
@@ -607,7 +607,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=29');
+        const Gem = await import('./gemini.js?v=30');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -626,7 +626,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=29');
+        const Gem = await import('./gemini.js?v=30');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
