@@ -1,7 +1,7 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=26';
+import * as S from './store.js?v=27';
 
 // Probamos varios modelos en orden: si uno está saturado ("high demand"), pasamos al
 // siguiente. 'gemini-flash-latest' es el más nuevo; los otros son estables de respaldo.
@@ -39,14 +39,21 @@ const URL_c = () => window.URL || window.webkitURL;
 
 // Una llamada a un modelo concreto. Marca el error como "sobrecarga" para poder reintentar.
 async function llamarModelo(key, modelo, partes) {
-  const r = await fetch(URL(key, modelo), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: partes }],
-      generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
-    }),
-  });
+  let r;
+  try {
+    r = await fetch(URL(key, modelo), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: partes }],
+        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
+      }),
+    });
+  } catch (e) {
+    // Error de red ("Load failed" en iPhone): lo marcamos como recuperable para reintentar.
+    e.sobrecarga = true;
+    throw e;
+  }
   if (!r.ok) {
     let msg = `Error ${r.status}`;
     try { const j = await r.json(); msg = j.error?.message || msg; } catch (e) {}
@@ -78,6 +85,10 @@ async function llamar(key, partes) {
         break;
       }
     }
+  }
+  // Si lo último fue un error de red (sin status HTTP), es más bien conexión.
+  if (ultimo && !ultimo.status) {
+    throw new Error('No pude conectar con la IA. Revisa tu internet e inténtalo de nuevo.');
   }
   throw new Error('La IA está saturada ahora mismo. Prueba en un rato, o usa "Plato casero" por gramos mientras tanto.');
 }

@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=26';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=26';
-import * as Onb from './onboarding.js?v=26';
-import * as Hoy from './view-hoy.js?v=26';
-import * as Entreno from './view-entreno.js?v=26';
-import * as Comida from './view-comida.js?v=26';
-import * as Progreso from './view-progreso.js?v=26';
-import * as Pique from './view-pique.js?v=26';
-import * as Ayuda from './view-ayuda.js?v=26';
-import * as Exp from './exportar.js?v=26';
-import * as Nube from './nube.js?v=26';
+import * as S from './store.js?v=27';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=27';
+import * as Onb from './onboarding.js?v=27';
+import * as Hoy from './view-hoy.js?v=27';
+import * as Entreno from './view-entreno.js?v=27';
+import * as Comida from './view-comida.js?v=27';
+import * as Progreso from './view-progreso.js?v=27';
+import * as Pique from './view-pique.js?v=27';
+import * as Ayuda from './view-ayuda.js?v=27';
+import * as Exp from './exportar.js?v=27';
+import * as Nube from './nube.js?v=27';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -106,7 +106,7 @@ function pintar() {
   });
 
   // Cualquier botón "unirme al grupo" abre la misma hoja.
-  $$('[data-grupo]', app).forEach(b => b.onclick = sheetGrupo);
+  $$('[data-grupo]', app).forEach(b => b.onclick = () => sheetGrupo());
 
   $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.route === ruta));
   pintarPerfil();
@@ -144,9 +144,8 @@ function sheetPerfiles() {
       </div>
       <button class="btn pri full" id="nuevaPersona">+ Añadir otra persona</button>
       <p class="tiny dim" style="margin:0">
-        No hace falta que seáis solo dos: el gimnasio entero puede sumarse aquí y competir junto.
-        Por ahora todos los perfiles viven en este móvil; cuando conectemos Drive, cada uno tendrá
-        el suyo en su teléfono y se verán entre sí.
+        Para competir con los demás, entra con tu cuenta de Google desde <b>Pique → Unirme a un grupo</b>.
+        Cada uno tiene su perfil en su propio teléfono y se ven entre sí.
       </p>
     </div>`, (b) => {
     const enlazar = () => {
@@ -500,7 +499,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=26');
+        const Gem = await import('./gemini.js?v=27');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -519,7 +518,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=26');
+        const Gem = await import('./gemini.js?v=27');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
