@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=28';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=28';
-import * as Onb from './onboarding.js?v=28';
-import * as Hoy from './view-hoy.js?v=28';
-import * as Entreno from './view-entreno.js?v=28';
-import * as Comida from './view-comida.js?v=28';
-import * as Progreso from './view-progreso.js?v=28';
-import * as Pique from './view-pique.js?v=28';
-import * as Ayuda from './view-ayuda.js?v=28';
-import * as Exp from './exportar.js?v=28';
-import * as Nube from './nube.js?v=28';
+import * as S from './store.js?v=29';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=29';
+import * as Onb from './onboarding.js?v=29';
+import * as Hoy from './view-hoy.js?v=29';
+import * as Entreno from './view-entreno.js?v=29';
+import * as Comida from './view-comida.js?v=29';
+import * as Progreso from './view-progreso.js?v=29';
+import * as Pique from './view-pique.js?v=29';
+import * as Ayuda from './view-ayuda.js?v=29';
+import * as Exp from './exportar.js?v=29';
+import * as Nube from './nube.js?v=29';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -34,41 +34,129 @@ function abrirInvitacionSiHay() {
   sheetGrupo(code);
 }
 
-// Arranca la sesión de Google (si había una guardada) y desde ahí la sincronización.
-// Migra los perfiles que venían con un id anónimo viejo a la cuenta de Google.
-async function arrancarNube() {
-  // Solo cargamos Firebase al arrancar si ya estás en un grupo o vuelves de un login;
-  // un usuario solo/local no paga esa carga.
-  let pend = null;
-  try { pend = localStorage.getItem('pique.pendingJoin'); } catch (e) {}
-  if (!S.enGrupo() && pend === null) return;
+// ------------------------------------------------------------------ sesión (login obligatorio)
+//
+// Para usar Pique hay que entrar con Google. Así cada persona queda ligada a su cuenta,
+// no hay muñecos de relleno y en el pique solo salen los que entraron de verdad.
 
-  let u = null;
+let enLogin = false;
+let sesionUser = null;
+let sesionAplicada = false;
+
+function quitarSplash() {
+  const sp = $('#splash');
+  if (sp && !sp.classList.contains('gone')) {
+    sp.classList.add('gone');
+    setTimeout(() => sp.remove(), 400);
+  }
+}
+
+// Arranca la sesión de Google. Si hay una guardada, entra directo; si no, muestra el login.
+async function arrancarSesion() {
+  // Red de seguridad: si la carga se cuelga, igual mostramos la pantalla de entrada.
+  const seguro = setTimeout(() => { if (!sesionAplicada) aplicarSesion(null); }, 12000);
   try {
-    await Nube.prepararAuth(() => { if (!enOnboarding) pintar(); }); // re-pinta al cambiar la sesión
-    u = Nube.usuarioActual();
-  } catch (e) { return; }
+    await Nube.prepararAuth(alCambiarSesion);   // el oyente corre con el primer estado
+  } catch (e) {
+    // Firebase no cargó (sin internet / CDN bloqueada): mostramos el login igual.
+  }
+  clearTimeout(seguro);
+  if (!sesionAplicada) aplicarSesion(Nube.usuarioActual());
+}
 
-  const repintar = () => { if (!enOnboarding) pintar(); };
+// Se llama en cada cambio de sesión: login, logout y el primer estado conocido.
+function alCambiarSesion(user) { aplicarSesion(user); }
 
+function aplicarSesion(user) {
+  sesionAplicada = true;
+  sesionUser = user;
+
+  if (!user) { mostrarLogin(); return; }   // no logueado → puerta de entrada
+
+  // Logueado: ligamos el teléfono a la cuenta y limpiamos los muñecos de relleno.
+  enLogin = false;
+  S.ligarCuenta(user);
+
+  const repintar = () => { if (!enOnboarding && !enLogin) pintar(); };
+
+  // Si ya estaba en un grupo, retomamos la sincronización (migra el id viejo si hace falta).
   if (S.enGrupo()) {
-    if (u && S.miPerfilId() !== u.uid) {
-      // el grupo venía con un id viejo (anónimo): re-unir con la cuenta migra los datos
-      Nube.unirse(S.grupoCodigo(), repintar).catch(() => {});
-    } else {
-      // con o sin login: mientras las reglas lo permitan, seguimos sincronizando
-      Nube.iniciar(repintar).catch(() => {});
-    }
+    if (S.miPerfilId() && S.miPerfilId() !== user.uid) Nube.unirse(S.grupoCodigo(), repintar).catch(() => {});
+    else Nube.iniciar(repintar).catch(() => {});
   }
 
-  // ¿Volvimos de un login por redirección que había dejado un "unirse" a medias?
+  // Entrar a la app: onboarding si falta configurarse, si no la vista normal.
+  if (!S.perfil().onboarding) { if (!enOnboarding) arrancarOnboarding(); }
+  else if (!enOnboarding) {
+    const h = location.hash.replace('#', '');
+    if (VISTAS[h]) ruta = h;
+    pintar();
+  }
+
+  quitarSplash();
+
+  // ¿Llegó por link de invitación o dejó un "unirse" a medias? Lo abrimos ya logueado.
   try {
     const pend = localStorage.getItem('pique.pendingJoin');
-    if (pend !== null && u && !S.enGrupo() && !enOnboarding) {
+    if (pend !== null && !S.enGrupo() && !enOnboarding) {
       localStorage.removeItem('pique.pendingJoin');
       sheetGrupo(pend);
+      return;
     }
   } catch (e) { /* noop */ }
+  abrirInvitacionSiHay();
+}
+
+// Pantalla de entrada: logo de Pique + "Entrar con Google". Sin login no se entra.
+function pantallaLoginHtml() {
+  return `
+  <div style="min-height:calc(100vh - 150px);display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:30px 24px">
+    <div style="display:flex;align-items:center;gap:13px;margin-bottom:24px">
+      <svg width="52" height="42" viewBox="0 0 56 44" fill="none" stroke-linejoin="miter" aria-hidden="true">
+        <path d="M4 41 L28 5 L52 41" stroke="var(--a)" stroke-width="9"/>
+        <path d="M17 41 L28 24 L39 41" stroke="#ffffff" stroke-width="9"/>
+      </svg>
+      <div style="font-family:var(--font-head);font-weight:600;font-size:42px;letter-spacing:.05em;line-height:1">PIQUE</div>
+    </div>
+    <p style="color:var(--tx-2);font-size:15px;line-height:1.55;max-width:272px;margin:0 0 28px">
+      Bajen juntos, compitan y <b style="color:var(--tx)">no queden últimos</b>.
+      Entra con tu cuenta y aparece en el pique.
+    </p>
+    <button class="btn pri full xl" id="loginGoogle" style="max-width:300px">Entrar con Google</button>
+    <p style="color:var(--tx-3);font-size:12px;line-height:1.5;margin:14px 0 0;max-width:286px">
+      Un toque, sin contraseñas. Tus datos quedan ligados a tu cuenta y los tienes en cualquier teléfono.
+    </p>
+    <p style="color:var(--tx-3);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;margin:34px 0 0;font-weight:600">
+      Gratis para siempre · Sin anuncios
+    </p>
+  </div>`;
+}
+
+function mostrarLogin() {
+  enLogin = true;
+  enOnboarding = false;
+  $('#tabbar').style.display = 'none';
+  $('#topbar').style.display = 'none';
+  $('#viewTitle').textContent = '';
+  const app = $('#app');
+  app.innerHTML = pantallaLoginHtml();
+  const btn = $('#loginGoogle');
+  if (btn) btn.onclick = async () => {
+    btn.disabled = true; btn.textContent = 'Abriendo Google…';
+    try {
+      // Guardamos una invitación pendiente por si el login se va por redirección (iPhone).
+      if (invitacionPendiente) { try { localStorage.setItem('pique.pendingJoin', invitacionPendiente); } catch (e) {} }
+      const u = await Nube.entrarConGoogle();
+      // popup ok → el oyente alCambiarSesion renderiza la app.
+      // redirect → la página se recarga y vuelve logueada.
+      if (!u) return;
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'Entrar con Google';
+      toast(e.message || 'No pude entrar con Google. Revisa tu internet.');
+    }
+  };
+  quitarSplash();
 }
 
 // ------------------------------------------------------------------ router
@@ -84,6 +172,7 @@ function ir(nueva) {
 
 function pintar() {
   const app = $('#app');
+  $('#topbar').style.display = '';   // puede venir oculto desde la pantalla de login
 
   if (enOnboarding) {
     $('#viewTitle').textContent = 'Bienvenido';
@@ -426,6 +515,17 @@ function sheetAjustes() {
         <button class="btn blue full" data-grupo="1">Unirme a un grupo</button>
       `}
 
+      <div class="sec-title" style="margin-left:0">Cuenta</div>
+      ${sesionUser ? `
+        <div class="card flat">
+          <div class="row-b"><span class="small muted">Conectado como</span>
+            <b class="small">${esc(sesionUser.email || sesionUser.nombre || '')}</b></div>
+        </div>
+        <button class="btn ghost full sm" id="ajLogout">Cerrar sesión</button>
+      ` : `
+        <p class="tiny dim" style="margin:0">No has entrado con tu cuenta.</p>
+      `}
+
       <div class="sec-title" style="margin-left:0">Foto del plato (IA)</div>
       <p class="tiny dim" style="margin:0">
         Le sacas una foto a tu plato y la IA estima las calorías. Necesitas una
@@ -480,6 +580,14 @@ function sheetAjustes() {
     </div>`, (b) => {
     b.querySelectorAll('[data-grupo]').forEach(x => x.onclick = () => { cerrarSheet(); sheetGrupo(); });
 
+    const logout = b.querySelector('#ajLogout');
+    if (logout) logout.onclick = async () => {
+      if (!await confirmar('Cerrar sesión',
+        'Volverás a la pantalla de entrada. Tus datos quedan guardados en tu cuenta.', 'Cerrar sesión')) return;
+      cerrarSheet();
+      await Nube.cerrarSesion();   // signOut → el oyente te lleva a la pantalla de login
+    };
+
     b.querySelector('#ajRehacer').onclick = () => { cerrarSheet(); arrancarOnboarding(); };
 
     b.querySelector('#ajKcal').onclick = async () => {
@@ -499,7 +607,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=28');
+        const Gem = await import('./gemini.js?v=29');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -518,7 +626,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=28');
+        const Gem = await import('./gemini.js?v=29');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -588,7 +696,7 @@ function iniciar() {
   if (VISTAS[h]) ruta = h;
   window.addEventListener('hashchange', () => {
     const n = location.hash.replace('#', '');
-    if (VISTAS[n] && n !== ruta && !enOnboarding) { ruta = n; pintar(); }
+    if (VISTAS[n] && n !== ruta && !enOnboarding && !enLogin) { ruta = n; pintar(); }
   });
 
   // ¿Vino un link de invitación? (?grupo=familia) Guardamos el código y limpiamos la URL.
@@ -600,20 +708,10 @@ function iniciar() {
     }
   } catch (e) { /* noop */ }
 
-  if (!S.perfil().onboarding) arrancarOnboarding();
-  else pintar();
-
-  // Login + sincronización con la nube. Prepara la sesión de Google (si había una guardada)
-  // y desde ahí arranca la sync, migra perfiles viejos a la cuenta y reanuda invitaciones.
-  arrancarNube();
-
-  // Si llegó por link y ya está listo (sin onboarding), abrimos la ventana de unirse.
-  abrirInvitacionSiHay();
-
-  setTimeout(() => {
-    $('#splash').classList.add('gone');
-    setTimeout(() => $('#splash').remove(), 400);
-  }, 420);
+  // Puerta de entrada: sin login no se renderiza la app. arrancarSesion() decide si
+  // mostrar la pantalla de "Entrar con Google" o, si ya había sesión, entrar directo.
+  // El splash se quita cuando la sesión queda resuelta.
+  arrancarSesion();
 
   // Aviso si el navegador va a borrar los datos por falta de espacio.
   navigator.storage?.persist?.().catch(() => {});

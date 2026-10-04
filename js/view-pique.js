@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=28';
-import { esc, num, anillo } from './ui.js?v=28';
+import * as S from './store.js?v=29';
+import { esc, num, anillo } from './ui.js?v=29';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [
@@ -57,8 +57,10 @@ export function render() {
   const s = S.state();
   const activo = S.perfil();
   const ocultos = new Set(S.piqueOcultos());
-  // tú siempre estás; de los demás, solo los que no has ocultado
-  const gente = s.perfiles.filter(p => p.id === activo.id || !ocultos.has(p.id));
+  // Solo gente REAL: tú siempre, y de los demás solo quien entró con su cuenta (_uid).
+  // Así no aparecen muñecos de relleno ni perfiles fantasma que nadie usa.
+  const esReal = (p) => p.id === activo.id || !!p._uid;
+  const gente = s.perfiles.filter(p => esReal(p) && (p.id === activo.id || !ocultos.has(p.id)));
 
   const cabecera = grupoHtml() + selectorHtml(s, activo, ocultos) + (gente.length >= 2 ? actividadHtml(gente) : '');
 

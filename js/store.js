@@ -112,19 +112,15 @@ export function borrarReceta(id) {
   save();
 }
 
+// La app arranca con UN solo perfil: tú. Ya no trae rivales de relleno — los demás
+// aparecen solos desde la nube cuando entran con su cuenta. Tu nombre se rellena con
+// el de tu cuenta de Google al entrar (ver ligarCuenta).
 const estadoInicial = () => {
-  const a = perfilNuevo('Alonso', '#4ade80');
-  const c = perfilNuevo('Cristóbal', '#60a5fa');
-  const v = perfilNuevo('Vicente', '#f472b6');
-  const j = perfilNuevo('Julio', '#fbbf24');
-  a.emoji = '💪';
-  c.emoji = '🔥';
-  v.emoji = '👱‍♀️';   // la cara de rubia, como pidió Alonso
-  j.emoji = '😎';
+  const yo = perfilNuevo('', '#ffd60a');
   return {
     version: 1,
-    perfiles: [a, c, v, j],
-    perfilActivo: a.id,
+    perfiles: [yo],
+    perfilActivo: yo.id,
     creado: todayISO(),
     geminiKey: '',   // clave gratis de Google AI Studio; vive solo en este móvil
     workerUrl: '',   // URL del Worker de Cloudflare (open source); si está, se usa esta
@@ -133,6 +129,26 @@ const estadoInicial = () => {
     miPerfilId: null, // quién soy YO en este teléfono (solo subo lo mío a la nube)
   };
 };
+
+// Ligar el teléfono a la cuenta de Google al entrar. Deja TU perfil (el activo) y
+// borra los perfiles de relleno sin configurar (los muñecos que traía la app de antes),
+// para que nunca más aparezca un "rival" que en realidad nadie usa. Rellena tu nombre
+// con el de tu cuenta si aún no lo tienes.
+export function ligarCuenta(user) {
+  if (!user || !user.uid) return;
+  const s = load();
+  const activo = s.perfiles.find(p => p.id === s.perfilActivo) || s.perfiles[0];
+  if (!activo) return;
+  activo._uid = user.uid;
+  if (user.foto) activo._foto = user.foto;
+  if (user.email) activo._email = user.email;
+  if (user.nombre && !activo.onboarding && (!activo.nombre || activo.nombre === 'Alonso')) {
+    activo.nombre = user.nombre;
+  }
+  // fuera los muñecos de fábrica: conservo el activo y cualquier perfil ya configurado
+  s.perfiles = s.perfiles.filter(p => p.id === activo.id || p.onboarding);
+  save();
+}
 
 // Rellena campos nuevos que falten en un perfil (viejo o traído de la nube),
 // para que las vistas nunca lean un campo undefined.
