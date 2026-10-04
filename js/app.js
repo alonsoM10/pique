@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=30';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=30';
-import * as Onb from './onboarding.js?v=30';
-import * as Hoy from './view-hoy.js?v=30';
-import * as Entreno from './view-entreno.js?v=30';
-import * as Comida from './view-comida.js?v=30';
-import * as Progreso from './view-progreso.js?v=30';
-import * as Pique from './view-pique.js?v=30';
-import * as Ayuda from './view-ayuda.js?v=30';
-import * as Exp from './exportar.js?v=30';
-import * as Nube from './nube.js?v=30';
+import * as S from './store.js?v=31';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir } from './ui.js?v=31';
+import * as Onb from './onboarding.js?v=31';
+import * as Hoy from './view-hoy.js?v=31';
+import * as Entreno from './view-entreno.js?v=31';
+import * as Comida from './view-comida.js?v=31';
+import * as Progreso from './view-progreso.js?v=31';
+import * as Pique from './view-pique.js?v=31';
+import * as Ayuda from './view-ayuda.js?v=31';
+import * as Exp from './exportar.js?v=31';
+import * as Nube from './nube.js?v=31';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -211,61 +211,27 @@ function pintarPerfil() {
 
 // ------------------------------------------------------------------ perfiles
 
+// Con login, SOLO existes tú (tu cuenta de Google). Aquí ves y editas tu propio perfil;
+// a los demás NO se los puede abrir ni editar — ellos aparecen desde su teléfono en el Pique.
 function sheetPerfiles() {
-  const s = S.state();
-  abrirSheet('¿Quién eres?', `
+  const yo = S.perfil();
+  abrirSheet('Tu perfil', `
     <div class="stack">
-      <div class="list">
-        ${s.perfiles.map(p => `
-          <div class="item ${p.id === s.perfilActivo ? 'on' : ''}" style="padding-right:8px">
-            <button data-p="${p.id}" style="flex:1;min-width:0;display:flex;align-items:center;gap:11px;
-              background:none;border:0;padding:0;text-align:left;cursor:pointer">
-              <span style="width:32px;height:32px;border-radius:99px;display:grid;place-items:center;flex:none;
-                background:${S.colorPersona(p)};color:#0a0a0b;font-weight:800">${esc(S.avatar(p))}</span>
-              <span style="flex:1;min-width:0">
-                <span class="item-t" style="display:block">${esc(p.nombre)}</span>
-                <span class="item-s">${p.onboarding ? `${p.sesiones.length} entrenos · ${S.racha(p)} d de racha` : 'sin configurar'}</span>
-              </span>
-            </button>
-            <button class="btn ghost sm" data-editar="${p.id}" aria-label="Editar ${esc(p.nombre)}">&#9998;</button>
-            ${s.perfiles.length > 1 ? `<button class="btn ghost sm" data-quitar="${p.id}">&#10005;</button>` : ''}
-          </div>`).join('')}
+      <div class="item on" style="padding-right:8px">
+        <span style="width:38px;height:38px;border-radius:99px;display:grid;place-items:center;flex:none;
+          background:${S.colorPersona(yo)};color:#0a0a0b;font-weight:800;font-size:17px">${esc(S.avatar(yo))}</span>
+        <span style="flex:1;min-width:0">
+          <span class="item-t" style="display:block">${esc(yo.nombre)}</span>
+          <span class="item-s">${yo.onboarding ? `${yo.sesiones.length} entrenos · ${S.racha(yo)} d de racha` : 'sin configurar'}</span>
+        </span>
+        <button class="btn ghost sm" id="editarYo" aria-label="Editar tu perfil">&#9998;</button>
       </div>
-      <button class="btn pri full" id="nuevaPersona">+ Añadir otra persona</button>
       <p class="tiny dim" style="margin:0">
-        Para competir con los demás, entra con tu cuenta de Google desde <b>Pique → Unirme a un grupo</b>.
-        Cada uno tiene su perfil en su propio teléfono y se ven entre sí.
+        Eres tú, ligado a tu cuenta de Google. A los demás los ves en la pestaña <b>Pique</b>:
+        cada uno aparece desde su propio teléfono.
       </p>
     </div>`, (b) => {
-    const enlazar = () => {
-      b.querySelectorAll('[data-p]').forEach(x => x.onclick = () => {
-        S.cambiarPerfil(x.dataset.p);
-        cerrarSheet();
-        const p = S.perfil();
-        if (!p.onboarding) return arrancarOnboarding();
-        enOnboarding = false; // por si veníamos de un asistente a medias de otra persona
-        ruta = 'hoy';
-        pintar();
-      });
-      b.querySelectorAll('[data-quitar]').forEach(x => x.onclick = async (e) => {
-        e.stopPropagation();
-        const objetivo = s.perfiles.find(p => p.id === x.dataset.quitar);
-        if (!await confirmar('Quitar persona',
-          `Se borran todos los datos de ${objetivo.nombre} de este móvil.`, 'Quitar')) return;
-        S.eliminarPerfil(x.dataset.quitar);
-        cerrarSheet();
-        if (!S.perfil().onboarding) return arrancarOnboarding();
-        enOnboarding = false;
-        pintar();
-      });
-      b.querySelectorAll('[data-editar]').forEach(x => x.onclick = (e) => {
-        e.stopPropagation();
-        sheetEditarPersona(s.perfiles.find(p => p.id === x.dataset.editar));
-      });
-    };
-    enlazar();
-
-    b.querySelector('#nuevaPersona').onclick = () => sheetEditarPersona(null);
+    b.querySelector('#editarYo').onclick = () => sheetEditarPersona(yo);
   });
 }
 
@@ -607,7 +573,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=30');
+        const Gem = await import('./gemini.js?v=31');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -626,7 +592,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=30');
+        const Gem = await import('./gemini.js?v=31');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
