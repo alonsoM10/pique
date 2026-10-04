@@ -46,7 +46,7 @@ export default {
     if (request.method !== 'POST') return responder({ error: 'Usa POST' }, 405);
 
     try {
-      const { image } = await request.json();
+      const { image, pista } = await request.json();
       if (!image) return responder({ error: 'Falta la imagen' }, 400);
 
       // base64 → array de bytes (lo que espera el modelo de visión)
@@ -54,8 +54,13 @@ export default {
       const bytes = new Uint8Array(binario.length);
       for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
 
+      // Si el usuario corrigió ("en realidad es pan con queso"), se lo pasamos al modelo.
+      const prompt = PROMPT + (pista
+        ? `\nIMPORTANTE: el usuario aclara que en realidad es: "${String(pista).slice(0, 200)}". Corrige tu estimación y refléjalo en "nombre".`
+        : '');
+
       const salida = await env.AI.run(MODELO, {
-        prompt: PROMPT,
+        prompt,
         image: [...bytes],
         max_tokens: 300,
       });
