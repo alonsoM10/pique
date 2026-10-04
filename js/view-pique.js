@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=27';
-import { esc, num, anillo } from './ui.js?v=27';
+import * as S from './store.js?v=28';
+import { esc, num, anillo } from './ui.js?v=28';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [
@@ -82,8 +82,8 @@ export function mount(root, ir, rerender) {
 function grupoHtml() {
   if (S.enGrupo()) return '';
   return `
-    <div class="card" style="border-color:#1f4b6e;background:rgba(96,165,250,.08)">
-      <div class="item-t" style="color:var(--b)">Conéctate con tu grupo</div>
+    <div class="card" style="border-color:var(--a);background:var(--a-dim)">
+      <div class="item-t" style="color:var(--a)">Conéctate con tu grupo</div>
       <div class="item-s" style="margin:4px 0 11px">
         Escribe un código con tus amigos y verán en tiempo real lo que hace cada uno
         (gym, comida). No tienes que crear a nadie: aparecen solos.
@@ -116,7 +116,7 @@ function actividadHtml(gente) {
   const hoy = S.todayISO();
   const chip = (on, txt) => `<span style="font-size:11px;padding:2px 7px;border-radius:99px;
     background:${on ? 'var(--a-dim)' : 'var(--card-2)'};color:${on ? 'var(--a)' : 'var(--tx-3)'};
-    border:1px solid ${on ? '#245840' : 'var(--line)'};font-weight:700">${txt}</span>`;
+    border:1px solid ${on ? '#5c4d08' : 'var(--line)'};font-weight:700">${txt}</span>`;
   return `
     <div class="card tight">
       <div class="tiny dim" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px">

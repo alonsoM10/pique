@@ -1,7 +1,7 @@
 // onboarding.js — asistente de primera vez. 6 pantallas, todo saltable.
 
-import * as S from './store.js?v=27';
-import { esc, num, toast } from './ui.js?v=27';
+import * as S from './store.js?v=28';
+import { esc, num, toast } from './ui.js?v=28';
 
 let paso = 0;
 let d = {};      // borrador de respuestas
@@ -152,7 +152,7 @@ const p2 = () => {
         </div>
       </div>
       ${fecha ? `
-        <div class="card flat" style="border-color:#245840">
+        <div class="card flat" style="border-color:#5c4d08">
           <div class="tiny dim" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em">A ese ritmo</div>
           <div style="font-size:16px;font-weight:700;margin:5px 0 3px">${fecha}</div>
           <div class="small muted">${num(restan, 1)} kg en ${semanas} semanas</div>
@@ -246,7 +246,7 @@ const p4 = () => {
           <input class="input num" data-d="kcal" type="number" inputmode="numeric" value="${esc(d.kcal)}" placeholder="1800"></div>
         <p class="tiny dim" style="margin:0">Manda su cifra por encima de la mía: él te ha visto, yo no.</p>
       ` : sugerido ? `
-        <div class="card flat" style="border-color:#245840">
+        <div class="card flat" style="border-color:#5c4d08">
           <div class="tiny dim" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em">Mi cálculo</div>
           <div style="font-size:26px;font-weight:750;margin:4px 0">${num(sugerido)} <span style="font-size:13px;color:var(--tx-3)">kcal/día</span></div>
           <div class="small muted">Con ${num(Math.round(peso * 1.8))} g de proteína para no perder músculo.</div>

@@ -85,7 +85,7 @@ export function pedir({ titulo, label, valor = '', tipo = 'text', placeholder = 
 // ------------------------------------------------------------------- gráficos
 
 // Línea suave de evolución de peso.
-export function graficoLinea(puntos, { alto = 130, color = '#4ade80', objetivo = null } = {}) {
+export function graficoLinea(puntos, { alto = 130, color = '#ffd60a', objetivo = null } = {}) {
   if (!puntos.length) return '<div class="empty">Sin datos todavía</div>';
   const W = 320, H = alto, pad = { t: 12, r: 6, b: 18, l: 6 };
   const vals = puntos.map(p => p.y);
@@ -103,13 +103,13 @@ export function graficoLinea(puntos, { alto = 130, color = '#4ade80', objetivo =
 
   const lineaObj = objetivo != null
     ? `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(objetivo).toFixed(1)}" y2="${y(objetivo).toFixed(1)}"
-         stroke="#fbbf24" stroke-width="1" stroke-dasharray="4 4" opacity=".75"/>
+         stroke="#a1a1aa" stroke-width="1" stroke-dasharray="4 4" opacity=".7"/>
        <text x="${W - pad.r}" y="${(y(objetivo) - 5).toFixed(1)}" text-anchor="end"
-         fill="#fbbf24" font-size="9" font-weight="700">objetivo ${objetivo}</text>` : '';
+         fill="#a1a1aa" font-size="9" font-weight="700">objetivo ${objetivo}</text>` : '';
 
   const ptos = puntos.map((p, i) =>
     `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="${i === puntos.length - 1 ? 3.6 : 2}"
-       fill="${i === puntos.length - 1 ? color : '#0b0f14'}" stroke="${color}" stroke-width="1.6"/>`).join('');
+       fill="${i === puntos.length - 1 ? color : '#09090b'}" stroke="${color}" stroke-width="1.6"/>`).join('');
 
   const ultimo = puntos[puntos.length - 1];
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
@@ -126,7 +126,7 @@ export function graficoLinea(puntos, { alto = 130, color = '#4ade80', objetivo =
 }
 
 // Barras de volumen semanal / entrenos.
-export function graficoBarras(datos, { alto = 96, color = '#60a5fa' } = {}) {
+export function graficoBarras(datos, { alto = 96, color = '#ffd60a' } = {}) {
   if (!datos.length) return '<div class="empty">Sin datos todavía</div>';
   const W = 320, H = alto, gap = 5, pad = 16;
   const max = Math.max(...datos.map(d => d.v), 1);
@@ -136,24 +136,24 @@ export function graficoBarras(datos, { alto = 96, color = '#60a5fa' } = {}) {
       const h = Math.max(2, (d.v / max) * (H - 20));
       const x = i * (bw + gap);
       return `<rect x="${x.toFixed(1)}" y="${(H - 16 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}"
-        rx="3" fill="${d.v ? color : '#243244'}" opacity="${d.v ? 1 : .6}"/>
-      <text x="${(x + bw / 2).toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="#6b7d95"
+        rx="3" fill="${d.v ? color : '#29292d'}" opacity="${d.v ? 1 : .6}"/>
+      <text x="${(x + bw / 2).toFixed(1)}" y="${H - 4}" text-anchor="middle" fill="#6e6e76"
         font-size="9" font-weight="700">${esc(d.k)}</text>`;
     }).join('')}
   </svg>`;
 }
 
 // Anillo de progreso.
-export function anillo(pct, { size = 74, color = '#4ade80', texto = '' } = {}) {
+export function anillo(pct, { size = 74, color = '#ffd60a', texto = '' } = {}) {
   const r = size / 2 - 6, c = 2 * Math.PI * r;
   const off = c * (1 - Math.max(0, Math.min(1, pct)));
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex:none">
-    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#243244" stroke-width="6"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#29292d" stroke-width="6"/>
     <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
       stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
       transform="rotate(-90 ${size / 2} ${size / 2})"/>
-    <text x="50%" y="50%" text-anchor="middle" dy="4.5" fill="#e8eef7" font-size="15"
-      font-weight="750">${esc(texto)}</text>
+    <text x="50%" y="50%" text-anchor="middle" dy="4.5" fill="#fafafa" font-size="15"
+      font-weight="700">${esc(texto)}</text>
   </svg>`;
 }
 

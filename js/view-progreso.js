@@ -1,8 +1,8 @@
 // view-progreso.js — peso, medidas y proyección hacia el objetivo.
 
-import * as S from './store.js?v=27';
-import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras } from './ui.js?v=27';
-import { sheetPeso } from './view-hoy.js?v=27';
+import * as S from './store.js?v=28';
+import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras } from './ui.js?v=28';
+import { sheetPeso } from './view-hoy.js?v=28';
 
 let rango = 90; // días visibles en el gráfico
 
@@ -60,7 +60,7 @@ export function render() {
         </div>
       </div>
     ` : proy?.logrado ? `
-      <div class="card" style="border-color:#245840;background:var(--a-dim)">
+      <div class="card" style="border-color:#5c4d08;background:var(--a-dim)">
         <div class="center" style="padding:8px 0">
           <div style="font-size:30px">&#127942;</div>
           <div class="item-t" style="color:var(--a);margin-top:6px">Objetivo alcanzado</div>
@@ -83,7 +83,7 @@ export function render() {
           </div>
         </div>
 
-        <div class="card flat" style="border-color:#1e4670">
+        <div class="card flat" style="border-color:var(--line-2)">
           <div class="tiny dim" style="font-weight:700;text-transform:uppercase;letter-spacing:.06em">
             ${proy.ritmoReal != null && proy.fechaReal ? 'A tu ritmo real' : 'Al ritmo planeado'}
           </div>

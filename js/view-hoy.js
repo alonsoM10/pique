@@ -1,7 +1,7 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js?v=27';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=27';
+import * as S from './store.js?v=28';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=28';
 
 // Recordatorio de comida: si lo cierras, no vuelve a salir esa comida en esta sesión.
 function recordatorioOculto(hoy, id) {
@@ -51,7 +51,7 @@ export function render() {
         </div>
         ${prog != null
           ? anillo(prog, { texto: Math.round(prog * 100) + '%' })
-          : anillo(0, { texto: '—', color: '#2f4258' })}
+          : anillo(0, { texto: '—', color: '#3a3a40' })}
       </div>
     </div>
 
@@ -80,7 +80,7 @@ export function render() {
         <button class="btn pri full" data-go="entreno">Crear mi rutina</button>
       </div>
     ` : yaEntrenado ? `
-      <div class="card" style="border-color:#245840;background:var(--a-dim)">
+      <div class="card" style="border-color:#5c4d08;background:var(--a-dim)">
         <div class="row" style="gap:13px">
           <div style="font-size:28px">&#10003;</div>
           <div>
@@ -146,7 +146,7 @@ export function render() {
     </div>
 
     <!-- CREATINA -->
-    <div class="card" style="${creatinaHoy ? 'border-color:#245840;background:var(--a-dim)' : ''}">
+    <div class="card" style="${creatinaHoy ? 'border-color:#5c4d08;background:var(--a-dim)' : ''}">
       <div class="row" style="gap:13px;align-items:center">
         <div style="font-size:26px">${creatinaHoy ? '&#10003;' : '&#128137;'}</div>
         <div style="flex:1;min-width:0">

@@ -1,7 +1,7 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=27';
+import * as S from './store.js?v=28';
 
 // Probamos varios modelos en orden: si uno está saturado ("high demand"), pasamos al
 // siguiente. 'gemini-flash-latest' es el más nuevo; los otros son estables de respaldo.
