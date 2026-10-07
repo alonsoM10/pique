@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=32';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=32';
-import { buscarLocal } from './alimentos-cl.js?v=32';
+import * as S from './store.js?v=33';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=33';
+import { buscarLocal } from './alimentos-cl.js?v=33';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -57,7 +57,10 @@ export function render() {
     <input type="file" id="fotoPlato" accept="image/*" capture="environment" hidden>
     <input type="file" id="fotoEtiqueta" accept="image/*" capture="environment" hidden>
 
-    <div class="sec-title">Registrado hoy</div>
+    <div class="row-b" style="margin-top:4px">
+      <div class="sec-title" style="margin:0">Registrado hoy</div>
+      <button class="btn ghost sm" id="btnHistorial">&#128197; Historial</button>
+    </div>
     ${t.items.length ? gruposRegistrado(p, t.items) :
       '<div class="list"><div class="empty"><span class="big">&#9635;</span>Escanea, busca o arma un plato casero</div></div>'}
 
@@ -130,6 +133,64 @@ function gruposRegistrado(p, items) {
   }).join('');
 }
 
+// Historial: todos los días con algo registrado (o comidas de la minuta marcadas),
+// del más reciente al más viejo, con el total de kcal del día y el detalle.
+function sheetHistorial(p, rerender) {
+  const hoy = S.todayISO();
+
+  const pintar = () => {
+    const pp = S.perfil();
+    const dias = new Set();
+    (pp.registroComida || []).forEach(x => dias.add(x.fecha));
+    Object.keys(pp.marcadas || {}).forEach(f => {
+      if (Object.keys(pp.marcadas[f] || {}).length) dias.add(f);
+    });
+    const lista = [...dias].sort((a, b) => (a < b ? 1 : -1)); // más reciente primero
+
+    if (!lista.length) {
+      return `<div class="empty"><span class="big">&#128197;</span>
+        Aún no hay historial. Lo que escanees, busques o marques quedará aquí por día.</div>`;
+    }
+
+    const filaItem = (x) => `
+      <div class="item">
+        <div style="flex:1;min-width:0">
+          <div class="item-t" style="font-size:13.5px">${esc(x.nombre)}</div>
+          <div class="item-s">
+            ${x.gramos ? `${num(x.gramos)} g · ` : ''}${num(x.kcal)} kcal ·
+            P${num(x.prot)} C${num(x.carb)} G${num(x.gras)}
+          </div>
+        </div>
+        <button class="btn danger sm" data-rmali="${x.id}">&#10005;</button>
+      </div>`;
+
+    return lista.map(f => {
+      const t = S.totalesDelDia(f, p);
+      const etq = f === hoy ? 'Hoy' : S.fmtFecha(f);
+      const cuerpo = t.items.length
+        ? t.items.map(filaItem).join('')
+        : '<div class="item"><div class="item-s dim">Solo comidas de la minuta marcadas</div></div>';
+      return `
+        <div class="row-b" style="margin:14px 2px 6px">
+          <span class="tiny dim" style="font-weight:700;letter-spacing:.05em;text-transform:uppercase">${esc(etq)}</span>
+          <span class="tiny" style="font-weight:700;color:var(--a)">${num(t.kcal)} kcal</span>
+        </div>
+        <div class="list">${cuerpo}</div>`;
+    }).join('');
+  };
+
+  const wire = (body) => {
+    body.querySelectorAll('[data-rmali]').forEach(b => b.onclick = () => {
+      S.borrarAlimento(b.dataset.rmali);
+      body.innerHTML = `<div class="stack">${pintar()}</div>`;
+      wire(body);
+      rerender && rerender();
+    });
+  };
+
+  abrirSheet('Historial de comidas', `<div class="stack">${pintar()}</div>`, wire);
+}
+
 // ------------------------------------------------------------------ mount
 
 export function mount(root, ir, rerender) {
@@ -145,6 +206,8 @@ export function mount(root, ir, rerender) {
     S.borrarAlimento(b.dataset.rmali);
     rerender();
   });
+
+  root.querySelector('#btnHistorial').onclick = () => sheetHistorial(S.perfil(), rerender);
 
   root.querySelectorAll('[data-edcomida]').forEach(b => b.onclick = () => {
     const c = p.comidas.find(x => x.id === b.dataset.edcomida);
@@ -304,7 +367,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=32');
+      Gem = await import('./gemini.js?v=33');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -404,7 +467,7 @@ function sheetFotoEtiqueta(file, rerender) {
     };
     let prod;
     try {
-      const Gem = await import('./gemini.js?v=32');
+      const Gem = await import('./gemini.js?v=33');
       const base64 = await Gem.comprimirImagen(file);
       prod = await Gem.analizarEtiqueta(base64);
     } catch (e) {
