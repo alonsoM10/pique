@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=36';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=36';
-import { buscarLocal } from './alimentos-cl.js?v=36';
+import * as S from './store.js?v=37';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar, ico } from './ui.js?v=37';
+import { buscarLocal } from './alimentos-cl.js?v=37';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -47,19 +47,19 @@ export function render() {
     </div>
 
     <div class="grid2">
-      <button class="btn blue" id="btnScan">&#9635; Escanear</button>
-      <button class="btn" id="btnBuscar">&#128269; Buscar</button>
+      <button class="btn blue" id="btnScan">${ico('escanear')} Escanear</button>
+      <button class="btn" id="btnBuscar">${ico('buscar')} Buscar</button>
     </div>
-    <button class="btn full sm" id="btnPlato">&#127859; Plato casero (varios ingredientes)</button>
-    <button class="btn full sm" id="btnRecetas">&#128214; Mis recetas</button>
-    <button class="btn full sm" id="btnFoto">&#128247; Foto del plato (IA)</button>
-    <button class="btn full sm" id="btnEtiqueta">&#127991;&#65039; Foto de la etiqueta nutricional (IA)</button>
+    <button class="btn full sm" id="btnPlato">${ico('plato')} Plato casero (varios ingredientes)</button>
+    <button class="btn full sm" id="btnRecetas">${ico('libro')} Mis recetas</button>
+    <button class="btn full sm" id="btnFoto">${ico('camara')} Foto del plato (IA)</button>
+    <button class="btn full sm" id="btnEtiqueta">${ico('etiqueta')} Foto de la etiqueta nutricional (IA)</button>
     <input type="file" id="fotoPlato" accept="image/*" capture="environment" hidden>
     <input type="file" id="fotoEtiqueta" accept="image/*" capture="environment" hidden>
 
     <div class="row-b" style="margin-top:4px">
       <div class="sec-title" style="margin:0">Registrado hoy</div>
-      <button class="btn ghost sm" id="btnHistorial">&#128197; Historial</button>
+      <button class="btn ghost sm" id="btnHistorial">${ico('calendario', 15)} Historial</button>
     </div>
     ${t.items.length ? gruposRegistrado(p, t.items) :
       '<div class="list"><div class="empty"><span class="big">&#9635;</span>Escanea, busca o arma un plato casero</div></div>'}
@@ -386,7 +386,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=36');
+      Gem = await import('./gemini.js?v=37');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -486,7 +486,7 @@ function sheetFotoEtiqueta(file, rerender) {
     };
     let prod;
     try {
-      const Gem = await import('./gemini.js?v=36');
+      const Gem = await import('./gemini.js?v=37');
       const base64 = await Gem.comprimirImagen(file);
       prod = await Gem.analizarEtiqueta(base64);
     } catch (e) {

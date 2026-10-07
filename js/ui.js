@@ -159,6 +159,25 @@ export function anillo(pct, { size = 74, color = '#ffd60a', texto = '', txt = '#
 
 // ------------------------------------------------------------------- varios
 
+// Íconos de línea (SVG inline, sin depender de internet: andan offline). Heredan el
+// color del texto (currentColor) y el tamaño que le pases. Reemplazan a los emojis.
+const ICONOS = {
+  buscar: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  escanear: '<path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/><path d="M4 12h16"/>',
+  camara: '<path d="M4 7h3l2-2h6l2 2h3v12H4z"/><circle cx="12" cy="13" r="3.2"/>',
+  etiqueta: '<path d="M3 11V4h7l10 10-7 7L3 11z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  plato: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M12 11V7a3 3 0 0 1 3-3"/>',
+  libro: '<path d="M5 4a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h14V4z"/><path d="M19 17v4"/>',
+  calendario: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  pastilla: '<rect x="2.5" y="9" width="19" height="6" rx="3"/><path d="M12 9v6"/>',
+  descanso: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>',
+  campana: '<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  mas: '<path d="M12 5v14M5 12h14"/>',
+  check: '<path d="M5 12l5 5L20 6"/>',
+};
+export const ico = (nombre, size = 18) =>
+  `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex:none">${ICONOS[nombre] || ''}</svg>`;
+
 export const vibrar = (ms = 12) => { try { navigator.vibrate?.(ms); } catch (e) { /* iOS lo ignora */ } };
 
 export function mmss(seg) {

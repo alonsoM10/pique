@@ -119,6 +119,7 @@ textarea.input{min-height:74px;resize:vertical;font-size:15px}
   font-family:var(--font-head);font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--tx-3);cursor:pointer}
 .tab-ico{font-size:17px;line-height:1}
+.tab-ico svg{width:22px;height:22px;display:block}
 .tab.on{color:var(--a)}
 .tab.on::before{content:"";position:absolute;top:0;width:30px;height:3px;border-radius:0;background:var(--a);background-image:var(--tex-a)}
 

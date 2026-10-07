@@ -1,7 +1,7 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js?v=36';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=36';
+import * as S from './store.js?v=37';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast, ico } from './ui.js?v=37';
 
 // Recordatorio de comida: si lo cierras, no vuelve a salir esa comida en esta sesión.
 function recordatorioOculto(hoy, id) {
@@ -59,7 +59,7 @@ export function render() {
     <!-- RECORDATORIO DE COMIDA -->
     <div class="card" style="border-color:#5c4712;background:rgba(251,191,36,.09)">
       <div class="row" style="gap:12px;align-items:center">
-        <div style="font-size:24px">&#127869;</div>
+        <div style="color:var(--w)">${ico('campana', 22)}</div>
         <div style="flex:1;min-width:0">
           <div class="item-t" style="color:var(--w)">¿Ya anotaste tu ${esc(pend.nombre.toLowerCase())}?</div>
           <div class="item-s">Era a las ${esc(pend.hora)}. Anótala para no perder la cuenta.</div>
@@ -82,7 +82,7 @@ export function render() {
     ` : yaEntrenado ? `
       <div class="card" style="border-color:#5c4d08;background:var(--a-dim)">
         <div class="row" style="gap:13px">
-          <div style="font-size:28px">&#10003;</div>
+          <div style="color:var(--a)">${ico('check', 26)}</div>
           <div>
             <div class="item-t" style="color:var(--a)">Entreno hecho</div>
             <div class="item-s">${esc(dia ? dia.nombre : 'Sesión libre')} · buen trabajo</div>
@@ -120,7 +120,7 @@ export function render() {
     ` : `
       <div class="card">
         <div class="row" style="gap:13px">
-          <div style="font-size:26px">&#127774;</div>
+          <div style="color:var(--tx-2)">${ico('descanso', 24)}</div>
           <div style="flex:1">
             <div class="item-t">Día de descanso</div>
             <div class="item-s">Descansar también entrena. No rompe la racha.</div>
@@ -148,7 +148,7 @@ export function render() {
     <!-- CREATINA -->
     <div class="card" style="${creatinaHoy ? 'border-color:#5c4d08;background:var(--a-dim)' : ''}">
       <div class="row" style="gap:13px;align-items:center">
-        <div style="font-size:26px">${creatinaHoy ? '&#10003;' : '&#128137;'}</div>
+        <div style="color:${creatinaHoy ? 'var(--a)' : 'var(--tx-2)'}">${creatinaHoy ? ico('check', 24) : ico('pastilla', 24)}</div>
         <div style="flex:1;min-width:0">
           <div class="item-t" style="${creatinaHoy ? 'color:var(--a)' : ''}">
             ${creatinaHoy ? 'Creatina tomada' : '¿Tomaste tu creatina?'}
