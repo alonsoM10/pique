@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=33';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=33';
-import { buscarLocal } from './alimentos-cl.js?v=33';
+import * as S from './store.js?v=34';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar } from './ui.js?v=34';
+import { buscarLocal } from './alimentos-cl.js?v=34';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -161,7 +161,10 @@ function sheetHistorial(p, rerender) {
             P${num(x.prot)} C${num(x.carb)} G${num(x.gras)}
           </div>
         </div>
-        <button class="btn danger sm" data-rmali="${x.id}">&#10005;</button>
+        <div class="row" style="gap:5px;flex:none">
+          <button class="btn pri sm" data-readd="${x.id}" title="Agregar a hoy" aria-label="Agregar ${esc(x.nombre)} a hoy">&#43;</button>
+          <button class="btn danger sm" data-rmali="${x.id}" aria-label="Borrar ${esc(x.nombre)}">&#10005;</button>
+        </div>
       </div>`;
 
     return lista.map(f => {
@@ -179,12 +182,28 @@ function sheetHistorial(p, rerender) {
     }).join('');
   };
 
+  const refrescar = (body) => {
+    body.innerHTML = `<div class="stack">${pintar()}</div>`;
+    wire(body);
+    rerender && rerender();
+  };
+
   const wire = (body) => {
     body.querySelectorAll('[data-rmali]').forEach(b => b.onclick = () => {
       S.borrarAlimento(b.dataset.rmali);
-      body.innerHTML = `<div class="stack">${pintar()}</div>`;
-      wire(body);
-      rerender && rerender();
+      refrescar(body);
+    });
+    // "+" vuelve a registrar esa comida en el día de HOY (sin escribir todo de nuevo)
+    body.querySelectorAll('[data-readd]').forEach(b => b.onclick = () => {
+      const x = (S.perfil().registroComida || []).find(r => r.id === b.dataset.readd);
+      if (!x) return;
+      S.registrarAlimento({
+        nombre: x.nombre, kcal: x.kcal, prot: x.prot, carb: x.carb, gras: x.gras,
+        gramos: x.gramos, comidaNombre: x.comidaNombre, comidaId: x.comidaId,
+      });
+      vibrar(10);
+      toast('Agregado a hoy');
+      refrescar(body);
     });
   };
 
@@ -367,7 +386,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=33');
+      Gem = await import('./gemini.js?v=34');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -467,7 +486,7 @@ function sheetFotoEtiqueta(file, rerender) {
     };
     let prod;
     try {
-      const Gem = await import('./gemini.js?v=33');
+      const Gem = await import('./gemini.js?v=34');
       const base64 = await Gem.comprimirImagen(file);
       prod = await Gem.analizarEtiqueta(base64);
     } catch (e) {
