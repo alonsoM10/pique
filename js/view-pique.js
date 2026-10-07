@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=37';
-import { esc, num, anillo } from './ui.js?v=37';
+import * as S from './store.js?v=38';
+import { esc, num, anillo, ico } from './ui.js?v=38';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [
@@ -152,7 +152,7 @@ function renderSolo(p) {
   <div class="stack">
     <div class="card">
       <div class="empty" style="padding:22px 8px">
-        <span class="big">&#9876;</span>
+        <span class="big" style="color:var(--a)">${ico('trofeo', 32)}</span>
         <h3 style="font-size:16px;color:var(--tx);margin-bottom:7px">Todavía compites solo</h3>
         <p class="small" style="margin:0 auto;max-width:34ch">
           El pique de verdad empieza cuando se suma alguien más. Tócate el nombre arriba a la
@@ -255,7 +255,7 @@ function renderRanking(gente, s) {
   });
 
   const ranking = [...gente].sort((x, y) => puntos.get(y.id) - puntos.get(x.id));
-  const medalla = ['&#129351;', '&#129352;', '&#129353;'];
+  const medallaColor = ['#ffd60a', '#cfd3d8', '#c8863a']; // oro, plata, bronce
 
   return `
   <div class="stack">
@@ -267,9 +267,11 @@ function renderRanking(gente, s) {
       <div class="list" style="margin-top:13px">
         ${ranking.map((p, i) => `
           <div class="row" style="gap:11px">
-            <span style="width:26px;text-align:center;font-size:${i < 3 ? '19px' : '13px'};flex:none">
-              ${i < 3 ? medalla[i] : `<b class="dim">${i + 1}</b>`}
-            </span>
+            <span style="width:24px;height:24px;display:inline-grid;place-items:center;flex:none;
+              font-family:var(--font-disp);font-size:13px;
+              ${i < 3
+                ? `background:${medallaColor[i]};color:#0a0a0b;clip-path:polygon(0 0,80% 0,100% 100%,20% 100%)`
+                : 'color:var(--tx-3)'}">${i + 1}</span>
             <span style="width:36px;height:36px;border-radius:99px;display:grid;place-items:center;flex:none;
               background:${S.colorPersona(p)};color:#0a0a0b;font-weight:800">${esc(S.avatar(p))}</span>
             <span style="flex:1;min-width:0;font-weight:650">${esc(p.nombre)}</span>

@@ -1,8 +1,8 @@
 // view-progreso.js — peso, medidas y proyección hacia el objetivo.
 
-import * as S from './store.js?v=37';
-import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras } from './ui.js?v=37';
-import { sheetPeso } from './view-hoy.js?v=37';
+import * as S from './store.js?v=38';
+import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras, ico } from './ui.js?v=38';
+import { sheetPeso } from './view-hoy.js?v=38';
 
 let rango = 90; // días visibles en el gráfico
 
@@ -45,7 +45,7 @@ export function render() {
             `<button class="chip ${rango === v ? 'on' : ''}" data-rango="${v}">${n}</button>`).join('')}
         </div>
       ` : `<div class="empty" style="padding:22px 8px">
-            <span class="big">&#9878;</span>
+            <span class="big" style="color:var(--tx-3)">${ico('pesa', 30)}</span>
             Todavía no te has pesado.<br>Pésate hoy y a partir de ahí todo se calcula solo.
           </div>`}
     </div>
@@ -62,7 +62,7 @@ export function render() {
     ` : proy?.logrado ? `
       <div class="card" style="border-color:#5c4d08;background:var(--a-dim)">
         <div class="center" style="padding:8px 0">
-          <div style="font-size:30px">&#127942;</div>
+          <div style="color:var(--a)">${ico('trofeo', 28)}</div>
           <div class="item-t" style="color:var(--a);margin-top:6px">Objetivo alcanzado</div>
           <div class="item-s">${num(p.pesoObjetivo, 1)} kg. Ahora toca mantenerlo.</div>
         </div>

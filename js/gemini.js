@@ -1,7 +1,7 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=37';
+import * as S from './store.js?v=38';
 
 // Probamos varios modelos en orden: si uno está saturado o no existe, pasamos al siguiente.
 // Los alias (*-latest) apuntan siempre al modelo vigente, así no se quedan obsoletos.

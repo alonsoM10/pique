@@ -10,6 +10,7 @@
   --cut:12px;
   --font-body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
   --font-head:"Oswald","Inter",-apple-system,"Segoe UI",sans-serif;
+  --font-disp:"Anton","Oswald","Inter",sans-serif;
   --safe-b:env(safe-area-inset-bottom,0px);
   --safe-t:env(safe-area-inset-top,0px);
   --tabh:62px;
@@ -58,7 +59,9 @@ a{color:var(--a)}
 .row-b{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.sec-title{font-family:var(--font-head);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx-3);font-weight:600;margin:4px 2px}
+.sec-title{font-family:var(--font-head);font-size:14px;letter-spacing:.01em;color:var(--tx-2);font-weight:600;margin:4px 2px;
+  display:flex;align-items:center;gap:8px}
+.sec-title::before{content:"";width:3px;height:14px;background:var(--a);background-image:var(--tex-a);flex:none}
 .muted{color:var(--tx-2)}.dim{color:var(--tx-3)}
 .small{font-size:12.5px}.tiny{font-size:11.5px}
 .spacer{flex:1}
@@ -76,7 +79,7 @@ a{color:var(--a)}
 .hero-gold{background:var(--a);background-image:var(--tex-a);border:0;color:var(--a-ink);position:relative;overflow:hidden;
   clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--rad-s);padding:11px 12px}
-.stat .v{font-family:var(--font-head);font-size:27px;font-weight:600;letter-spacing:0;line-height:1.05;font-variant-numeric:tabular-nums}
+.stat .v{font-family:var(--font-disp);font-size:29px;font-weight:400;letter-spacing:.01em;line-height:1;font-variant-numeric:tabular-nums}
 .stat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx-3);font-weight:650;margin-top:3px}
 .delta{font-size:12px;font-weight:650}
 .up{color:var(--r)}.down{color:var(--a)}
@@ -173,14 +176,14 @@ textarea.input{min-height:74px;resize:vertical;font-size:15px}
 .divider{height:1px;background:var(--line);margin:4px 0}
 .macro{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
 .macro div{background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:7px 3px}
-.macro b{display:block;font-family:var(--font-head);font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
+.macro b{display:block;font-family:var(--font-disp);font-weight:400;font-size:17px;letter-spacing:.01em;font-variant-numeric:tabular-nums}
 .macro span{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx-3);font-weight:700}
 #reader{width:100%;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3;position:relative}
 #reader video{width:100%;height:100%;object-fit:cover;display:block}
 .rest{position:fixed;left:12px;right:12px;bottom:calc(var(--tabh) + var(--safe-b) + 10px);z-index:50;
   background:var(--b);color:#06182b;border-radius:14px;padding:12px 15px;display:flex;align-items:center;gap:12px;
   font-weight:700;box-shadow:0 12px 30px rgba(0,0,0,.45)}
-.rest .t{font-family:var(--font-head);font-weight:600;font-size:26px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.rest .t{font-family:var(--font-disp);font-weight:400;font-size:28px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
 .rest button{margin-left:auto;background:rgba(0,0,0,.18);border:0;color:inherit;border-radius:9px;padding:7px 11px;
   font-weight:700;font-size:12.5px;cursor:pointer}
 svg.chart{width:100%;display:block;overflow:visible}

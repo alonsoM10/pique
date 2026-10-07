@@ -2,7 +2,7 @@
 // Escrita en español y disponible sin conexión. Para lo que no esté,
 // se ofrece un enlace de búsqueda fuera (la API de búsqueda de wger ya no existe).
 
-import { esc, abrirSheet, cerrarSheet } from './ui.js?v=37';
+import { esc, abrirSheet, cerrarSheet, ico } from './ui.js?v=38';
 
 const BUSCAR_FUERA = 'https://duckduckgo.com/?q=t%C3%A9cnica+ejercicio+';
 
@@ -298,7 +298,7 @@ export function mount(root) {
     if (t.length >= 3 && !locales.length) {
       lista.insertAdjacentHTML('beforeend', `
         <div class="empty" style="padding:20px 8px">
-          <span class="big">&#128269;</span>
+          <span class="big" style="color:var(--tx-3)">${ico('buscar', 28)}</span>
           No tengo ficha escrita de <b>${esc(q.value.trim())}</b>.
         </div>
         <a class="btn ghost full sm" target="_blank" rel="noopener noreferrer"

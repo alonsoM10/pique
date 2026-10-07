@@ -152,8 +152,8 @@ export function anillo(pct, { size = 74, color = '#ffd60a', texto = '', txt = '#
     <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
       stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
       transform="rotate(-90 ${size / 2} ${size / 2})"/>
-    <text x="50%" y="50%" text-anchor="middle" dy="4.5" fill="${txt}" font-size="15"
-      font-weight="700">${esc(texto)}</text>
+    <text x="50%" y="50%" text-anchor="middle" dy="4.5" fill="${txt}" font-size="16"
+      font-family="Anton, Oswald, sans-serif">${esc(texto)}</text>
   </svg>`;
 }
 
@@ -174,6 +174,14 @@ const ICONOS = {
   campana: '<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   mas: '<path d="M12 5v14M5 12h14"/>',
   check: '<path d="M5 12l5 5L20 6"/>',
+  equis: '<path d="M6 6l12 12M18 6L6 18"/>',
+  ia: '<path d="M12 3l1.7 4.1L18 8.8l-4.3 1.7L12 15l-1.7-4.5L6 8.8l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+  trofeo: '<path d="M8 4h8v4a4 4 0 0 1-8 0V4z"/><path d="M8 5H5v1.5a3 3 0 0 0 3 3M16 5h3v1.5a3 3 0 0 1-3 3"/><path d="M12 12v4M9.5 20h5M10.5 20l.5-4M13.5 20l-.5-4"/>',
+  link: '<path d="M9 15l6-6"/><path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1M13 18l-1 1a4 4 0 0 1-6-6l1-1"/>',
+  lapiz: '<path d="M4 20h4L19 9a2 2 0 0 0-3-3L5 17z"/><path d="M14 7l3 3"/>',
+  pesa: '<path d="M4 9h16l-1.5 10h-13z"/><path d="M8 9a4 4 0 0 1 8 0"/><path d="M12 5V3"/>',
+  documento: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/>',
+  copiar: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
 };
 export const ico = (nombre, size = 18) =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex:none">${ICONOS[nombre] || ''}</svg>`;

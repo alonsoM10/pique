@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=37';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar, ico } from './ui.js?v=37';
-import { buscarLocal } from './alimentos-cl.js?v=37';
+import * as S from './store.js?v=38';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar, ico } from './ui.js?v=38';
+import { buscarLocal } from './alimentos-cl.js?v=38';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -76,7 +76,7 @@ export function render() {
           </div>
           <div class="row" style="gap:5px;flex:none">
             <button class="btn ghost sm" data-opciones="${c.id}" aria-label="Otras opciones para ${esc(c.nombre)}">
-              &#129302;${c.alternativas?.length ? ` ${c.alternativas.length}` : ''}
+              ${ico('ia', 14)}${c.alternativas?.length ? ` ${c.alternativas.length}` : ''}
             </button>
             <button class="btn ghost sm" data-edcomida="${c.id}">&#9998;</button>
           </div>
@@ -84,14 +84,14 @@ export function render() {
       ${!p.comidas.length ? '<div class="empty">Toca <b>Cargar mi minuta</b> y pega el plan de tu nutricionista</div>' : ''}
     </div>
     ${p.comidas.length ? `<button class="btn blue full sm" id="opcionesMinuta">
-      &#129302; Darme opciones de comida
+      ${ico('ia')} Darme opciones de comida
     </button>` : ''}
     <div class="grid2">
       <button class="btn ghost sm" id="addComida">+ Añadir comida</button>
-      <button class="btn ${p.comidas.length ? 'ghost' : 'pri'} sm" id="importarIA">&#128203; Cargar mi minuta</button>
+      <button class="btn ${p.comidas.length ? 'ghost' : 'pri'} sm" id="importarIA">${ico('documento')} Cargar mi minuta</button>
     </div>
     <button class="btn ghost full sm" id="minutaPdf">
-      &#128196; ${S.minutaPdf() ? 'Ver el PDF de mi minuta' : 'Guardar el PDF de mi minuta'}
+      ${ico('documento')} ${S.minutaPdf() ? 'Ver el PDF de mi minuta' : 'Guardar el PDF de mi minuta'}
     </button>
 
   </div>`;
@@ -148,7 +148,7 @@ function sheetHistorial(p, rerender) {
     const lista = [...dias].sort((a, b) => (a < b ? 1 : -1)); // más reciente primero
 
     if (!lista.length) {
-      return `<div class="empty"><span class="big">&#128197;</span>
+      return `<div class="empty"><span class="big" style="color:var(--tx-3)">${ico('calendario', 28)}</span>
         Aún no hay historial. Lo que escanees, busques o marques quedará aquí por día.</div>`;
     }
 
@@ -301,7 +301,7 @@ function sheetMinutaPdf(rerender) {
           este teléfono.
         </p>
         ${hay ? `
-          <button class="btn pri full" id="mpVer">&#128196; Abrir el PDF</button>
+          <button class="btn pri full" id="mpVer">${ico('documento')} Abrir el PDF</button>
           <button class="btn full sm" id="mpCambiar">Cambiar por otro PDF</button>
           <button class="btn danger full sm" id="mpQuitar">Quitar el PDF</button>
         ` : `
@@ -386,7 +386,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=37');
+      Gem = await import('./gemini.js?v=38');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -486,7 +486,7 @@ function sheetFotoEtiqueta(file, rerender) {
     };
     let prod;
     try {
-      const Gem = await import('./gemini.js?v=37');
+      const Gem = await import('./gemini.js?v=38');
       const base64 = await Gem.comprimirImagen(file);
       prod = await Gem.analizarEtiqueta(base64);
     } catch (e) {
@@ -664,7 +664,7 @@ Almuerzo 14:00
 
       <details style="margin-top:2px">
         <summary class="small" style="cursor:pointer;color:var(--tx-2)">
-          &#128247; ¿Tu minuta es un PDF o una foto?
+          ${ico('camara', 16)} ¿Tu minuta es un PDF o una foto?
         </summary>
         <div class="stack" style="margin-top:9px">
           <p class="tiny dim" style="margin:0">
@@ -910,7 +910,7 @@ function sheetOpcionesMinuta(rerender) {
         varias opciones para cada comida de tu minuta. Traes la respuesta aquí y quedan guardadas:
         así ya no preguntas al nutri cada vez que no sabes qué comer.
       </p>
-      <button class="btn blue full" id="omCopiar">&#128203; Copiar el texto para la IA</button>
+      <button class="btn blue full" id="omCopiar">${ico('copiar')} Copiar el texto para la IA</button>
       <div class="field">
         <label class="label">Pega aquí la respuesta de la IA</label>
         <textarea class="input" id="omTexto" style="min-height:150px"
@@ -1009,7 +1009,7 @@ function sheetEscaner(rerender) {
     <div class="stack">
       <div id="reader"><video id="vid" playsinline muted autoplay></video></div>
       <p class="tiny dim center" id="scanMsg" style="margin:0">Pidiendo permiso de cámara…</p>
-      <button class="btn blue full" id="scanFotoBtn">&#128247; ¿No lee? Toma una foto del código</button>
+      <button class="btn blue full" id="scanFotoBtn">${ico('camara')} ¿No lee? Toma una foto del código</button>
       <input type="file" id="scanFoto" accept="image/*" capture="environment" hidden>
       <div class="divider"></div>
       <div class="field">
@@ -1315,7 +1315,7 @@ function sheetPlatoCasero(rerender) {
       ${selectComida(p)}
       <div class="card flat" id="pcResu"><div class="tiny dim">Escribe arriba para calcular…</div></div>
       <button class="btn pri full xl" id="pcOk" disabled>Agregar al día</button>
-      <button class="btn ghost full sm" id="pcReceta" disabled>&#128214; Guardar como receta</button>
+      <button class="btn ghost full sm" id="pcReceta" disabled>${ico('libro')} Guardar como receta</button>
 
       <details style="margin-top:2px">
         <summary class="tiny dim" style="cursor:pointer">¿Un alimento no está en la lista? Calcúlalo con una IA</summary>

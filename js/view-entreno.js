@@ -1,7 +1,7 @@
 // view-entreno.js — editor de rutinas y sesión de entreno en vivo.
 
-import * as S from './store.js?v=37';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, vibrar, mmss } from './ui.js?v=37';
+import * as S from './store.js?v=38';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, vibrar, mmss, ico } from './ui.js?v=38';
 
 // Sesión en curso (viva sólo mientras la app está abierta; se persiste al terminar).
 let sesion = null;
@@ -46,7 +46,7 @@ function renderVacio() {
     </div>
 
     <div class="card flat">
-      <h4 class="small" style="margin-bottom:7px">&#129302; ¿Ya tienes tu rutina en otro lado?</h4>
+      <h4 class="small" style="margin-bottom:7px;display:flex;align-items:center;gap:7px">${ico('ia', 16)} ¿Ya tienes tu rutina en otro lado?</h4>
       <p class="tiny muted" style="margin:0 0 11px">
         Descríbesela a cualquier IA con estas instrucciones y pega aquí lo que te devuelva.
         Días, ejercicios, series y descanso, todo de una vez.
@@ -114,7 +114,7 @@ function renderRutina(p, r) {
     </div>
     <div class="grid2">
       <button class="btn ghost sm" id="nuevoDia">+ Añadir día</button>
-      <button class="btn ghost sm" id="importarRutinaIA">&#129302; Importar con IA</button>
+      <button class="btn ghost sm" id="importarRutinaIA">${ico('ia')} Importar con IA</button>
     </div>
 
     <button class="btn ghost full sm" id="verGuia">&#9432; ¿Cómo se hace cada ejercicio?</button>
@@ -257,13 +257,13 @@ export function mount(root, ir, rerender) {
   root.querySelector('#importarRutinaIA')?.addEventListener('click', () => sheetImportarRutinaIA(rerender));
 
   root.querySelector('#editarNombre')?.addEventListener('click', async () => {
-    const { pedir } = await import('./ui.js?v=37');
+    const { pedir } = await import('./ui.js?v=38');
     const v = await pedir({ titulo: 'Nombre de la rutina', label: 'Nombre', valor: r.nombre });
     if (v) { r.nombre = v; S.save(); rerender(); }
   });
 
   root.querySelector('#nuevoDia')?.addEventListener('click', async () => {
-    const { pedir } = await import('./ui.js?v=37');
+    const { pedir } = await import('./ui.js?v=38');
     const v = await pedir({
       titulo: 'Nuevo día', label: 'Nombre del día',
       placeholder: 'Torso A, Pierna, Push…', ok: 'Crear',
@@ -508,7 +508,7 @@ function sheetEditarDia(diaId, rerender) {
         });
       });
       b.querySelector('#renDia').onclick = async () => {
-        const { pedir } = await import('./ui.js?v=37');
+        const { pedir } = await import('./ui.js?v=38');
         const v = await pedir({ titulo: 'Renombrar día', label: 'Nombre', valor: d.nombre });
         if (v) { d.nombre = v; S.save(); pintar(); rerender(); }
       };
@@ -545,7 +545,7 @@ function sheetMoverEjercicio(r, origen, idx, alTerminar) {
     b.querySelectorAll('[data-dest]').forEach(x => x.onclick = () =>
       mover(r.dias.find(d => d.id === x.dataset.dest)));
     b.querySelector('#mvNuevo').onclick = async () => {
-      const { pedir } = await import('./ui.js?v=37');
+      const { pedir } = await import('./ui.js?v=38');
       const nombre = await pedir({
         titulo: 'Día nuevo', label: 'Nombre del día', placeholder: 'Pecho, Pierna…', ok: 'Crear y mover',
       });
