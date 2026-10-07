@@ -196,10 +196,14 @@ export const state = () => load();
 // (open source, sin exponer clave) o, como alternativa, una clave de Gemini.
 export const geminiKey = () => load().geminiKey || '';
 export function setGeminiKey(k) { load().geminiKey = (k || '').trim(); save(); }
-export const workerUrl = () => load().workerUrl || '';
+// Worker compartido por defecto: IA de la foto lista para TODOS sin poner nada.
+// La clave vive en Cloudflare, nunca en el repo. Quien quiera, puede poner su propia
+// URL en Ajustes y esa manda.
+export const WORKER_POR_DEFECTO = 'https://pique-plato.alonso-mieres-1.workers.dev';
+export const workerUrl = () => load().workerUrl || WORKER_POR_DEFECTO;
 export function setWorkerUrl(u) { load().workerUrl = (u || '').trim(); save(); }
-// ¿Está configurada alguna forma de analizar la foto?
-export const iaFotoLista = () => !!(load().workerUrl || load().geminiKey);
+// Siempre hay IA de la foto: como mínimo el Worker compartido.
+export const iaFotoLista = () => true;
 
 // Pique: a quién NO mostrar en la comparativa (cada uno elige con quién compararse).
 export const piqueOcultos = () => load().piqueOcultos || [];

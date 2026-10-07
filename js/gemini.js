@@ -1,7 +1,7 @@
 // gemini.js — foto del plato con la API de Gemini (Google AI Studio).
 // La clave la pone cada persona en Ajustes y vive sólo en su móvil (no en el repo).
 
-import * as S from './store.js?v=31';
+import * as S from './store.js?v=32';
 
 // Probamos varios modelos en orden: si uno está saturado o no existe, pasamos al siguiente.
 // Los alias (*-latest) apuntan siempre al modelo vigente, así no se quedan obsoletos.
@@ -105,6 +105,8 @@ async function llamar(key, partes) {
 
 // Extrae el JSON de la estimación de un texto (venga de Gemini o del Worker).
 function leerJson(txt) {
+  // El Worker puede devolver el JSON ya como objeto; Gemini lo manda como texto.
+  if (txt && typeof txt === 'object') txt = JSON.stringify(txt);
   let dato;
   try { dato = JSON.parse(txt); }
   catch (e) {
@@ -124,8 +126,10 @@ function leerJson(txt) {
 // Punto de entrada: usa el Worker de Cloudflare si está configurado; si no, Gemini.
 // `pista` es una corrección del usuario ("en realidad es pan con queso") para re-estimar.
 export async function analizarPlato(base64, pista = '') {
-  if (S.workerUrl()) return analizarConWorker(base64, pista);
-  return analizarConGemini(base64, pista);
+  // Si pusiste tu propia clave de Gemini, se usa esa (rápida y ya probada).
+  if (S.geminiKey()) return analizarConGemini(base64, pista);
+  // Si no, el Worker compartido por defecto: IA lista para todos, sin poner nada.
+  return analizarConWorker(base64, pista);
 }
 
 // Lee la TABLA NUTRICIONAL de la foto de una etiqueta y devuelve los valores por 100 g.

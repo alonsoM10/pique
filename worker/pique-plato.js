@@ -11,7 +11,7 @@
 //   3. Ponle un nombre (ej. pique-plato) → "Deploy".
 //   4. "Edit code": borra lo que haya y pega TODO este archivo → "Deploy".
 //   5. En el Worker: "Settings" → "Bindings" → "Add binding" → "Workers AI".
-//      - Variable name: AI    (en mayúsculas, exactamente así)
+//      - Variable name: AI    (también se acepta IA)
 //      - Guarda y vuelve a "Deploy".
 //   6. Copia la URL del Worker (algo como https://pique-plato.tucuenta.workers.dev)
 //      y pégala en la app: Ajustes → Foto del plato → URL del Worker → Probar.
@@ -59,13 +59,27 @@ export default {
         ? `\nIMPORTANTE: el usuario aclara que en realidad es: "${String(pista).slice(0, 200)}". Corrige tu estimación y refléjalo en "nombre".`
         : '');
 
-      const salida = await env.AI.run(MODELO, {
-        prompt,
-        image: [...bytes],
-        max_tokens: 300,
-      });
+      // El binding de Workers AI; vale tanto "AI" como "IA" por si se nombró en español.
+      const ia = env.AI || env.IA;
+      if (!ia) return responder({ error: 'Falta el binding de Workers AI (nombralo AI o IA)' }, 500);
 
-      return responder({ text: salida.response || '' });
+      const entrada = { prompt, image: [...bytes], max_tokens: 300 };
+
+      let salida;
+      try {
+        salida = await ia.run(MODELO, entrada);
+      } catch (err) {
+        // Los modelos de Meta piden aceptar su licencia la primera vez (error 5016).
+        // Enviamos el prompt 'agree' una vez para aceptarla y reintentamos.
+        if (/5016|submit the prompt|agree/i.test(String(err && err.message))) {
+          try { await ia.run(MODELO, { prompt: 'agree' }); } catch (e2) { /* se ignora */ }
+          salida = await ia.run(MODELO, entrada);
+        } else {
+          throw err;
+        }
+      }
+
+      return responder({ text: salida.response || salida.description || '' });
     } catch (e) {
       return responder({ error: 'El Worker falló: ' + (e && e.message ? e.message : String(e)) }, 500);
     }
