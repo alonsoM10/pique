@@ -144,15 +144,15 @@ export function graficoBarras(datos, { alto = 96, color = '#ffd60a' } = {}) {
 }
 
 // Anillo de progreso.
-export function anillo(pct, { size = 74, color = '#ffd60a', texto = '' } = {}) {
+export function anillo(pct, { size = 74, color = '#ffd60a', texto = '', txt = '#fafafa', track = '#29292d' } = {}) {
   const r = size / 2 - 6, c = 2 * Math.PI * r;
   const off = c * (1 - Math.max(0, Math.min(1, pct)));
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex:none">
-    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#29292d" stroke-width="6"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${track}" stroke-width="6"/>
     <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
       stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
       transform="rotate(-90 ${size / 2} ${size / 2})"/>
-    <text x="50%" y="50%" text-anchor="middle" dy="4.5" fill="#fafafa" font-size="15"
+    <text x="50%" y="50%" text-anchor="middle" dy="4.5" fill="${txt}" font-size="15"
       font-weight="700">${esc(texto)}</text>
   </svg>`;
 }

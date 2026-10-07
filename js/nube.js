@@ -4,7 +4,7 @@
 // grupos/<codigo>/perfiles/<uid>. Como el uid es siempre el mismo, no hay duplicados y
 // tus datos te siguen en cualquier teléfono. Sin internet, la app sigue con localStorage.
 
-import * as S from './store.js?v=35';
+import * as S from './store.js?v=36';
 
 // Config pública del proyecto Firebase de Alonso (no es secreto; protegen las reglas).
 const CONFIG = {

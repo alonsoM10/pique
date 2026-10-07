@@ -1,7 +1,7 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js?v=35';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=35';
+import * as S from './store.js?v=36';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast } from './ui.js?v=36';
 
 // Recordatorio de comida: si lo cierras, no vuelve a salir esa comida en esta sesión.
 function recordatorioOculto(hoy, id) {
@@ -36,22 +36,22 @@ export function render() {
   return `
   <div class="stack">
 
-    <div class="card hero">
+    <div class="card hero-gold" style="padding:16px 17px">
       <div class="row-b">
-        <div>
-          <div class="tiny dim" style="font-weight:650;letter-spacing:.06em;text-transform:uppercase">
+        <div style="min-width:0">
+          <div style="font-size:12.5px;font-weight:600;color:#6b5a00">
             ${esc(saludo)}, ${esc(p.nombre.split(' ')[0])}
           </div>
-          <h2 style="font-size:19px;margin-top:3px">${esc(S.fmtFecha(hoy))}</h2>
-          <div class="small muted" style="margin-top:5px">
+          <h2 style="font-size:23px;margin-top:3px;color:var(--a-ink);letter-spacing:.01em">${esc(S.fmtFecha(hoy))}</h2>
+          <div style="margin-top:7px;font-size:13.5px;font-weight:650;color:#4a3f0a">
             ${r > 0
-              ? `Racha de <b style="color:var(--a)">${r} día${r === 1 ? '' : 's'}</b>`
+              ? `${r} día${r === 1 ? '' : 's'} de racha encendida`
               : 'Empieza tu racha hoy'}
           </div>
         </div>
         ${prog != null
-          ? anillo(prog, { texto: Math.round(prog * 100) + '%' })
-          : anillo(0, { texto: '—', color: '#3a3a40' })}
+          ? anillo(prog, { texto: Math.round(prog * 100) + '%', color: '#0a0a0b', txt: '#0a0a0b', track: 'rgba(0,0,0,.18)' })
+          : anillo(0, { texto: '—', color: 'rgba(0,0,0,.25)', txt: '#6b5a00', track: 'rgba(0,0,0,.18)' })}
       </div>
     </div>
 
@@ -93,7 +93,7 @@ export function render() {
       <div class="card">
         <div class="card-hd">
           <div>
-            <span class="pill b">Hoy toca</span>
+            <span class="pill a">Hoy toca</span>
             <h3 style="font-size:18px;margin-top:7px">${esc(dia.nombre)}</h3>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function render() {
           return `<div style="text-align:center">
             <div class="tiny dim" style="font-weight:700;margin-bottom:4px">${d}</div>
             <div style="height:30px;border-radius:9px;background:${bg};color:${col};display:grid;place-items:center;
-              border:1px solid ${esHoy ? 'var(--b)' : 'var(--line)'};font-size:13px;font-weight:750">
+              border:1px solid ${esHoy ? 'var(--a)' : 'var(--line)'};font-size:13px;font-weight:750">
               ${hecho ? '&#10003;' : prog ? '&#183;' : ''}
             </div>
           </div>`;

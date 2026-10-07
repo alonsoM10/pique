@@ -73,6 +73,8 @@ a{color:var(--a)}
 .hero{background:var(--card);border:1px solid var(--line-2);position:relative;overflow:hidden;
   clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
 .hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--a);background-image:var(--tex-a)}
+.hero-gold{background:var(--a);background-image:var(--tex-a);border:0;color:var(--a-ink);position:relative;overflow:hidden;
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,0 100%)}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--rad-s);padding:11px 12px}
 .stat .v{font-family:var(--font-head);font-size:27px;font-weight:600;letter-spacing:0;line-height:1.05;font-variant-numeric:tabular-nums}
 .stat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx-3);font-weight:650;margin-top:3px}
