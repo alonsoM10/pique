@@ -1,7 +1,7 @@
 // view-hoy.js — pantalla de inicio: qué toca hoy, de un vistazo.
 
-import * as S from './store.js?v=42';
-import { esc, num, anillo, abrirSheet, cerrarSheet, toast, ico } from './ui.js?v=42';
+import * as S from './store.js?v=43';
+import { esc, num, anillo, abrirSheet, cerrarSheet, toast, ico } from './ui.js?v=43';
 
 // Recordatorio de comida: si lo cierras, no vuelve a salir esa comida en esta sesión.
 function recordatorioOculto(hoy, id) {
@@ -29,6 +29,13 @@ export function render() {
   const recordar = pend && !recordatorioOculto(hoy, pend.id);
 
   const dif = pesos.length > 1 ? pesos[pesos.length - 1].kg - pesos[0].kg : null;
+
+  // Resumen del día para el panel de inicio.
+  const t = S.totalesDelDia(hoy, p);
+  const objK = p.kcalObjetivo || 0;
+  const pctK = objK ? Math.min(1, t.kcal / objK) : 0;
+  const pesoIni = p.pesoInicial;
+  const bajado = (pesoIni != null && peso != null) ? pesoIni - peso : null;
 
   const hora = new Date().getHours();
   const saludo = hora < 6 ? 'Aún despierto' : hora < 13 ? 'Buenos días' : hora < 21 ? 'Buenas tardes' : 'Buenas noches';
@@ -69,6 +76,47 @@ export function render() {
       <button class="btn full sm" data-go="comida" style="margin-top:10px">Anotar comida</button>
     </div>
     ` : ''}
+
+    <!-- CÓMO VOY -->
+    <div class="grid3">
+      <button class="stat" id="btnPeso" style="text-align:left;cursor:pointer">
+        <div class="v">${peso != null ? num(peso, 1) : '—'}</div>
+        <div class="k">Peso · kg</div>
+      </button>
+      <div class="stat">
+        <div class="v" style="color:${bajado != null && bajado > 0 ? 'var(--a)' : 'var(--tx)'}">
+          ${bajado != null ? (bajado > 0 ? '-' : (bajado < 0 ? '+' : '')) + num(Math.abs(bajado), 1) : '—'}
+        </div>
+        <div class="k">Kg bajados</div>
+      </div>
+      <div class="stat">
+        <div class="v">${r}</div>
+        <div class="k">Racha · días</div>
+      </div>
+    </div>
+
+    <!-- CALORÍAS DE HOY (cuánto comes) -->
+    <button class="card" data-go="comida" style="display:block;width:100%;text-align:left;cursor:pointer">
+      <div class="row-b" style="margin-bottom:10px">
+        <div>
+          <div class="tiny dim" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase">Calorías de hoy</div>
+          <div style="font-family:var(--font-disp);font-size:34px;line-height:1;margin-top:2px">
+            ${num(t.kcal)}<span style="font-size:13px;color:var(--tx-3)"> / ${objK ? num(objK) : '—'} kcal</span>
+          </div>
+        </div>
+        <div class="center">
+          <div style="font-size:18px;font-weight:750;color:${objK && t.kcal > objK ? 'var(--r)' : 'var(--a)'}">
+            ${objK ? (objK - t.kcal >= 0 ? num(objK - t.kcal) : '+' + num(t.kcal - objK)) : '—'}
+          </div>
+          <div class="tiny dim">${objK && objK - t.kcal >= 0 ? 'te quedan' : 'pasado'}</div>
+        </div>
+      </div>
+      <div class="bar"><i style="width:${pctK * 100}%;${objK && t.kcal > objK ? 'background:var(--r)' : ''}"></i></div>
+      <div class="row-b" style="margin-top:9px">
+        <span class="tiny dim">P ${num(t.prot)}g · C ${num(t.carb)}g · G ${num(t.gras)}g</span>
+        <span class="tiny" style="color:var(--a);font-weight:700">${hechas}/${totalComidas} comidas</span>
+      </div>
+    </button>
 
     <!-- ENTRENO DE HOY -->
     ${!tieneRutina ? `
@@ -129,21 +177,6 @@ export function render() {
         <button class="btn ghost full sm" style="margin-top:11px" data-go="entreno">Entrenar igual</button>
       </div>
     `}
-
-    <!-- ATAJOS -->
-    <div class="grid2">
-      <button class="stat" id="btnPeso" style="text-align:left;cursor:pointer">
-        <div class="v">${peso != null ? num(peso, 1) : '—'}<span style="font-size:13px;color:var(--tx-3)"> kg</span></div>
-        <div class="k">Pesarme hoy</div>
-        ${dif != null ? `<div class="delta ${dif <= 0 ? 'down' : 'up'}" style="margin-top:4px">
-          ${dif <= 0 ? '&#9660;' : '&#9650;'} ${num(Math.abs(dif), 1)} kg</div>` : ''}
-      </button>
-      <button class="stat" data-go="comida" style="text-align:left;cursor:pointer">
-        <div class="v">${hechas}<span style="font-size:13px;color:var(--tx-3)">/${totalComidas}</span></div>
-        <div class="k">Comidas de hoy</div>
-        <div class="bar" style="margin-top:7px"><i style="width:${totalComidas ? (hechas / totalComidas) * 100 : 0}%"></i></div>
-      </button>
-    </div>
 
     <!-- CREATINA -->
     <div class="card" style="${creatinaHoy ? 'border-color:#5c4d08;background:var(--a-dim)' : ''}">

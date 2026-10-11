@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=42';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir, ico } from './ui.js?v=42';
-import * as Onb from './onboarding.js?v=42';
-import * as Hoy from './view-hoy.js?v=42';
-import * as Entreno from './view-entreno.js?v=42';
-import * as Comida from './view-comida.js?v=42';
-import * as Progreso from './view-progreso.js?v=42';
-import * as Pique from './view-pique.js?v=42';
-import * as Ayuda from './view-ayuda.js?v=42';
-import * as Exp from './exportar.js?v=42';
-import * as Nube from './nube.js?v=42';
+import * as S from './store.js?v=43';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir, ico } from './ui.js?v=43';
+import * as Onb from './onboarding.js?v=43';
+import * as Hoy from './view-hoy.js?v=43';
+import * as Entreno from './view-entreno.js?v=43';
+import * as Comida from './view-comida.js?v=43';
+import * as Progreso from './view-progreso.js?v=43';
+import * as Pique from './view-pique.js?v=43';
+import * as Ayuda from './view-ayuda.js?v=43';
+import * as Exp from './exportar.js?v=43';
+import * as Nube from './nube.js?v=43';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -92,7 +92,7 @@ function aplicarSesion(user) {
 
     // Reprogramar los recordatorios de comidas del día (si los activó).
     if (S.notisComidas()) {
-      import('./notis.js?v=42').then(N => N.programarRecordatorios()).catch(() => {});
+      import('./notis.js?v=43').then(N => N.programarRecordatorios()).catch(() => {});
     }
     // Si entró tocando una notificación (?r=comida), lo llevamos a Comida.
     try {
@@ -595,7 +595,7 @@ function sheetAjustes() {
 
     const notisBtn = b.querySelector('#ajNotis');
     if (notisBtn) notisBtn.onclick = async () => {
-      const N = await import('./notis.js?v=42');
+      const N = await import('./notis.js?v=43');
       try {
         if (S.notisComidas()) {
           await N.desactivarRecordatorios();
@@ -632,7 +632,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=42');
+        const Gem = await import('./gemini.js?v=43');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -651,7 +651,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=42');
+        const Gem = await import('./gemini.js?v=43');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {

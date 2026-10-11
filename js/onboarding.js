@@ -1,7 +1,7 @@
 // onboarding.js — asistente de primera vez. 6 pantallas, todo saltable.
 
-import * as S from './store.js?v=42';
-import { esc, num, toast, pedir } from './ui.js?v=42';
+import * as S from './store.js?v=43';
+import { esc, num, toast, pedir } from './ui.js?v=43';
 
 let paso = 0;
 let d = {};      // borrador de respuestas
@@ -326,7 +326,7 @@ export function mount(root, rerender) {
     const original = btn.textContent;
     btn.textContent = 'Buscando…'; btn.disabled = true;
     try {
-      const Nube = await import('./nube.js?v=42');
+      const Nube = await import('./nube.js?v=43');
       const ok = await Nube.restaurarDesdeGrupo(cod, () => {});
       if (ok) { toast('¡Datos recuperados!'); paso = -1; terminar(d); return; }
       toast('No encontré datos tuyos en ese grupo con tu cuenta');
