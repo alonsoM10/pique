@@ -127,6 +127,7 @@ const estadoInicial = () => {
     piqueOcultos: [], // ids de personas que NO quiero ver en el Pique
     grupo: '',        // código de grupo compartido en la nube; vacío = sin sincronizar
     miPerfilId: null, // quién soy YO en este teléfono (solo subo lo mío a la nube)
+    notisComidas: false, // recordatorios de comidas por notificación (por dispositivo)
   };
 };
 
@@ -204,6 +205,10 @@ export const workerUrl = () => load().workerUrl || WORKER_POR_DEFECTO;
 export function setWorkerUrl(u) { load().workerUrl = (u || '').trim(); save(); }
 // Siempre hay IA de la foto: como mínimo el Worker compartido.
 export const iaFotoLista = () => true;
+
+// Recordatorios de comidas por notificación (preferencia por dispositivo).
+export const notisComidas = () => !!load().notisComidas;
+export function setNotisComidas(v) { load().notisComidas = !!v; save(); }
 
 // Pique: a quién NO mostrar en la comparativa (cada uno elige con quién compararse).
 export const piqueOcultos = () => load().piqueOcultos || [];

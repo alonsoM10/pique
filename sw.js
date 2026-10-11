@@ -1,7 +1,7 @@
 // sw.js — caché para que la app abra sin conexión.
 // Sube CACHE cada vez que cambies archivos y el móvil recogerá la versión nueva.
 
-const CACHE = 'pique-v38';
+const CACHE = 'pique-v39';
 
 const ARCHIVOS = [
   './',
@@ -14,6 +14,7 @@ const ARCHIVOS = [
   './js/nube.js',
   './js/store.js',
   './js/ui.js',
+  './js/notis.js',
   './js/onboarding.js',
   './js/view-hoy.js',
   './js/view-entreno.js',
@@ -47,6 +48,17 @@ self.addEventListener('activate', (e) => {
     caches.keys()
       .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+// Al tocar una notificación de recordatorio: enfocar la app (o abrirla) en Comida.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+      for (const c of cs) { if ('focus' in c) { c.focus(); return; } }
+      if (self.clients.openWindow) return self.clients.openWindow('./?r=comida');
+    })
   );
 });
 

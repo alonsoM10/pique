@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=38';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir, ico } from './ui.js?v=38';
-import * as Onb from './onboarding.js?v=38';
-import * as Hoy from './view-hoy.js?v=38';
-import * as Entreno from './view-entreno.js?v=38';
-import * as Comida from './view-comida.js?v=38';
-import * as Progreso from './view-progreso.js?v=38';
-import * as Pique from './view-pique.js?v=38';
-import * as Ayuda from './view-ayuda.js?v=38';
-import * as Exp from './exportar.js?v=38';
-import * as Nube from './nube.js?v=38';
+import * as S from './store.js?v=39';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir, ico } from './ui.js?v=39';
+import * as Onb from './onboarding.js?v=39';
+import * as Hoy from './view-hoy.js?v=39';
+import * as Entreno from './view-entreno.js?v=39';
+import * as Comida from './view-comida.js?v=39';
+import * as Progreso from './view-progreso.js?v=39';
+import * as Pique from './view-pique.js?v=39';
+import * as Ayuda from './view-ayuda.js?v=39';
+import * as Exp from './exportar.js?v=39';
+import * as Nube from './nube.js?v=39';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -94,6 +94,16 @@ function aplicarSesion(user) {
   }
 
   quitarSplash();
+
+  // Reprogramar los recordatorios de comidas del día (si los activó).
+  if (S.notisComidas()) {
+    import('./notis.js?v=39').then(N => N.programarRecordatorios()).catch(() => {});
+  }
+  // Si entró tocando una notificación (?r=comida), lo llevamos a Comida.
+  try {
+    const rq = new URLSearchParams(location.search).get('r');
+    if (rq && VISTAS[rq]) { ruta = rq; if (!enOnboarding && !enLogin) pintar(); }
+  } catch (e) { /* noop */ }
 
   // ¿Llegó por link de invitación o dejó un "unirse" a medias? Lo abrimos ya logueado.
   try {
@@ -492,6 +502,23 @@ function sheetAjustes() {
         <p class="tiny dim" style="margin:0">No has entrado con tu cuenta.</p>
       `}
 
+      <div class="sec-title" style="margin-left:0">Recordatorios</div>
+      <div class="card flat">
+        <div class="row-b">
+          <div style="flex:1;min-width:0">
+            <div class="item-t">Avisarme mis comidas</div>
+            <div class="item-s">Una notificación a la hora de cada comida de tu minuta</div>
+          </div>
+          <button class="btn ${S.notisComidas() ? 'pri' : 'ghost'} sm" id="ajNotis" style="flex:none">
+            ${S.notisComidas() ? 'Activado' : 'Activar'}
+          </button>
+        </div>
+      </div>
+      <p class="tiny dim" style="margin:0">
+        En iPhone, instala la app en la pantalla de inicio para que el aviso llegue mejor.
+        Igual te avisamos dentro de la app al abrirla.
+      </p>
+
       <div class="sec-title" style="margin-left:0">Foto del plato (IA)</div>
       <p class="tiny dim" style="margin:0">
         Le sacas una foto a tu plato y la IA estima las calorías. Necesitas una
@@ -554,6 +581,26 @@ function sheetAjustes() {
       await Nube.cerrarSesion();   // signOut → el oyente te lleva a la pantalla de login
     };
 
+    const notisBtn = b.querySelector('#ajNotis');
+    if (notisBtn) notisBtn.onclick = async () => {
+      const N = await import('./notis.js?v=39');
+      try {
+        if (S.notisComidas()) {
+          await N.desactivarRecordatorios();
+          toast('Recordatorios desactivados');
+        } else {
+          await N.activarRecordatorios();
+          toast(N.soportaProgramar()
+            ? 'Listo, te avisaré a la hora de cada comida'
+            : 'Activado. En este teléfono el aviso llega mejor con la app abierta');
+        }
+      } catch (e) {
+        toast(e.message || 'No se pudo activar');
+      }
+      cerrarSheet();
+      sheetAjustes();
+    };
+
     b.querySelector('#ajRehacer').onclick = () => { cerrarSheet(); arrancarOnboarding(); };
 
     b.querySelector('#ajKcal').onclick = async () => {
@@ -573,7 +620,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=38');
+        const Gem = await import('./gemini.js?v=39');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -592,7 +639,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=38');
+        const Gem = await import('./gemini.js?v=39');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {
