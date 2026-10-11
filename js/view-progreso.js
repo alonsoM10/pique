@@ -1,8 +1,8 @@
 // view-progreso.js — peso, medidas y proyección hacia el objetivo.
 
-import * as S from './store.js?v=41';
-import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras, ico } from './ui.js?v=41';
-import { sheetPeso } from './view-hoy.js?v=41';
+import * as S from './store.js?v=42';
+import { esc, num, toast, abrirSheet, cerrarSheet, graficoLinea, graficoBarras, ico } from './ui.js?v=42';
+import { sheetPeso } from './view-hoy.js?v=42';
 
 let rango = 90; // días visibles en el gráfico
 
@@ -27,8 +27,8 @@ export function render() {
       <div class="row-b" style="align-items:flex-start">
         <div>
           <div class="tiny dim" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase">Peso actual</div>
-          <div style="font-size:34px;font-weight:750;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums">
-            ${act != null ? num(act, 1) : '—'}<span style="font-size:15px;color:var(--tx-3)"> kg</span>
+          <div style="font-family:var(--font-disp);font-size:46px;letter-spacing:.01em;line-height:.95;font-variant-numeric:tabular-nums;margin-top:2px">
+            ${act != null ? num(act, 1) : '—'}<span style="font-size:16px;color:var(--tx-3)"> kg</span>
           </div>
           ${dif != null ? `<div class="delta ${dif <= 0 ? 'down' : 'up'}">
             ${dif <= 0 ? '&#9660;' : '&#9650;'} ${num(Math.abs(dif), 1)} kg desde el inicio</div>` : ''}

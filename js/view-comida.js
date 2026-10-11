@@ -1,9 +1,9 @@
 // view-comida.js — minuta del nutricionista, escáner de código de barras y registro de alimentos.
 // Base de datos: Open Food Facts (abierta, gratuita, sin API key ni límite de peticiones).
 
-import * as S from './store.js?v=41';
-import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar, ico } from './ui.js?v=41';
-import { buscarLocal } from './alimentos-cl.js?v=41';
+import * as S from './store.js?v=42';
+import { esc, num, toast, abrirSheet, cerrarSheet, confirmar, alCerrarSheet, vibrar, ico } from './ui.js?v=42';
+import { buscarLocal } from './alimentos-cl.js?v=42';
 
 const OFF = 'https://world.openfoodfacts.org';
 let lector = null;   // instancia de ZXing
@@ -25,9 +25,9 @@ export function render() {
     <div class="card">
       <div class="row-b" style="margin-bottom:11px">
         <div>
-          <div class="tiny dim" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase">Hoy</div>
-          <div style="font-size:26px;font-weight:750;font-variant-numeric:tabular-nums;line-height:1.2">
-            ${num(t.kcal)}<span style="font-size:13px;color:var(--tx-3)"> / ${num(objK)} kcal</span>
+          <div class="tiny dim" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase">Calorías de hoy</div>
+          <div style="font-family:var(--font-disp);font-size:38px;font-variant-numeric:tabular-nums;line-height:1;margin-top:2px">
+            ${num(t.kcal)}<span style="font-size:14px;color:var(--tx-3)"> / ${num(objK)} kcal</span>
           </div>
         </div>
         <div class="center">
@@ -386,7 +386,7 @@ function sheetFotoPlato(file, rerender) {
     const cuerpo = b.querySelector('#fpCuerpo');
     let Gem, base64;
     try {
-      Gem = await import('./gemini.js?v=41');
+      Gem = await import('./gemini.js?v=42');
       base64 = await Gem.comprimirImagen(file);
     } catch (e) {
       cuerpo.innerHTML = `<div class="small" style="color:var(--w)">${esc(e.message || 'No pude leer la foto')}</div>`;
@@ -486,7 +486,7 @@ function sheetFotoEtiqueta(file, rerender) {
     };
     let prod;
     try {
-      const Gem = await import('./gemini.js?v=41');
+      const Gem = await import('./gemini.js?v=42');
       const base64 = await Gem.comprimirImagen(file);
       prod = await Gem.analizarEtiqueta(base64);
     } catch (e) {

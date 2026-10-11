@@ -5,7 +5,7 @@
 // soporte es limitado; por eso el aviso DENTRO de la app (tarjeta en la pantalla Hoy,
 // ver store.comidaPendiente) es el respaldo que siempre funciona.
 
-import * as S from './store.js?v=41';
+import * as S from './store.js?v=42';
 
 export const soportaNotis = () =>
   typeof Notification !== 'undefined' && 'serviceWorker' in navigator;
