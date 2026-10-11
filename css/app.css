@@ -6,7 +6,7 @@
   --b:#8a95a5; --b-dim:#1a1f26;
   --w:#f59e0b; --r:#f87171;
   --rad:7px; --rad-s:5px;
-  --tex-a:repeating-linear-gradient(135deg,rgba(0,0,0,.11) 0 2px,transparent 2px 8px);
+  --tex-a:none;  /* oro liso, sin rayas (decoración que no sumaba) */
   --cut:12px;
   --font-body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
   --font-head:"Oswald","Inter",-apple-system,"Segoe UI",sans-serif;

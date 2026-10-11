@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=40';
-import { esc, num, anillo, ico } from './ui.js?v=40';
+import * as S from './store.js?v=41';
+import { esc, num, anillo, ico } from './ui.js?v=41';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [
@@ -257,28 +257,49 @@ function renderRanking(gente, s) {
   const ranking = [...gente].sort((x, y) => puntos.get(y.id) - puntos.get(x.id));
   const medallaColor = ['#ffd60a', '#cfd3d8', '#c8863a']; // oro, plata, bronce
 
+  // Tu posición en el reto, como número protagonista.
+  const yoId = S.miPerfilId() || (S.perfil() && S.perfil().id);
+  const miPos = ranking.findIndex(p => p.id === yoId);
+  const pos = miPos >= 0 ? miPos + 1 : null;
+  const total = ranking.length;
+
   return `
   <div class="stack">
 
-    <div class="card hero">
-      <div class="tiny dim" style="font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-align:center">
-        Ranking
+    <div class="card" style="padding:0;overflow:hidden;position:relative">
+      <div style="background:var(--a);background-image:var(--tex-a);color:var(--a-ink);
+        padding:7px 14px;display:flex;align-items:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5l7 13H5z"/></svg>
+        <span style="font-family:var(--font-head);font-weight:700;font-size:14px;letter-spacing:.08em">PIQUE</span>
+        <span style="margin-left:auto;font-size:11px;font-weight:700;color:#6b5a00;letter-spacing:.06em">EL RETO</span>
       </div>
-      <div class="list" style="margin-top:13px">
-        ${ranking.map((p, i) => `
-          <div class="row" style="gap:11px">
-            <span style="width:24px;height:24px;display:inline-grid;place-items:center;flex:none;
-              font-family:var(--font-disp);font-size:13px;
-              ${i < 3
-                ? `background:${medallaColor[i]};color:#0a0a0b;clip-path:polygon(0 0,80% 0,100% 100%,20% 100%)`
-                : 'color:var(--tx-3)'}">${i + 1}</span>
-            <span style="width:36px;height:36px;border-radius:99px;display:grid;place-items:center;flex:none;
-              background:${S.colorPersona(p)};color:#0a0a0b;font-weight:800">${esc(S.avatar(p))}</span>
-            <span style="flex:1;min-width:0;font-weight:650">${esc(p.nombre)}</span>
-            <span style="font-weight:800;font-size:17px;font-variant-numeric:tabular-nums">${puntos.get(p.id)}</span>
-          </div>`).join('')}
+      <div style="padding:15px 15px 14px">
+        ${pos ? `
+          <div class="tiny dim" style="text-transform:uppercase;letter-spacing:.1em;font-weight:700">
+            ${pos === 1 ? 'Vas de líder' : 'Tu posición'}
+          </div>
+          <div style="font-family:var(--font-disp);font-size:48px;line-height:.92;margin-top:3px">
+            ${pos}º<span style="font-size:19px;color:var(--tx-3)"> de ${total}</span>
+          </div>
+        ` : `
+          <div class="tiny dim" style="text-transform:uppercase;letter-spacing:.1em;font-weight:700">Ranking</div>
+        `}
+        <div class="list" style="margin-top:14px">
+          ${ranking.map((p, i) => `
+            <div class="row" style="gap:11px">
+              <span style="width:24px;height:24px;display:inline-grid;place-items:center;flex:none;
+                font-family:var(--font-disp);font-size:13px;
+                ${i < 3
+                  ? `background:${medallaColor[i]};color:#0a0a0b;clip-path:polygon(0 0,80% 0,100% 100%,20% 100%)`
+                  : 'color:var(--tx-3)'}">${i + 1}</span>
+              <span style="width:36px;height:36px;border-radius:99px;display:grid;place-items:center;flex:none;
+                background:${S.colorPersona(p)};color:#0a0a0b;font-weight:800">${esc(S.avatar(p))}</span>
+              <span style="flex:1;min-width:0;font-weight:650${p.id === yoId ? ';color:var(--a)' : ''}">${esc(p.nombre)}${p.id === yoId ? ' · tú' : ''}</span>
+              <span style="font-family:var(--font-disp);font-size:18px;font-variant-numeric:tabular-nums">${puntos.get(p.id)}</span>
+            </div>`).join('')}
+        </div>
+        <div class="tiny dim center" style="margin-top:12px">un punto por cada métrica ganada en solitario</div>
       </div>
-      <div class="tiny dim center" style="margin-top:12px">un punto por cada métrica ganada en solitario</div>
     </div>
 
     ${METRICAS.map(m => {
