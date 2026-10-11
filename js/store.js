@@ -249,6 +249,19 @@ export function unirGrupo(codigo, yoId = null) {
   save();
 }
 
+// Restaurar: entrar a un grupo usando el perfil que YA existe en la nube para tu cuenta,
+// sin pisar nada. Reemplaza el perfil local (vacío/nuevo) por el de la nube.
+export function entrarConPerfilNube(cod, perfilNube) {
+  const s = load();
+  const p = rellenarCampos(JSON.parse(JSON.stringify(perfilNube)));
+  s.grupo = String(cod).trim().toLowerCase().replace(/\s+/g, '-');
+  s.perfiles = [p];
+  s.perfilActivo = p.id;
+  s.miPerfilId = p.id;
+  s.piqueOcultos = [];
+  save();
+}
+
 export function salirGrupo() {
   const s = load();
   s.grupo = '';

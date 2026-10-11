@@ -1,7 +1,7 @@
 // view-pique.js — la comparativa. Con 2 personas es un cara a cara; con más, un ranking.
 
-import * as S from './store.js?v=39';
-import { esc, num, anillo, ico } from './ui.js?v=39';
+import * as S from './store.js?v=40';
+import { esc, num, anillo, ico } from './ui.js?v=40';
 
 // Comparamos en % del objetivo, no en kilos: si uno pesa 95 y otro 78, los kilos no son justos.
 const METRICAS = [

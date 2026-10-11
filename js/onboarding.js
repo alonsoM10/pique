@@ -1,7 +1,7 @@
 // onboarding.js — asistente de primera vez. 6 pantallas, todo saltable.
 
-import * as S from './store.js?v=39';
-import { esc, num, toast } from './ui.js?v=39';
+import * as S from './store.js?v=40';
+import { esc, num, toast, pedir } from './ui.js?v=40';
 
 let paso = 0;
 let d = {};      // borrador de respuestas
@@ -43,6 +43,8 @@ export function render() {
       <button class="btn pri" id="obSig" style="flex:1">${paso === PASOS - 1 ? 'Empezar' : 'Siguiente'}</button>
     </div>
     ${paso > 0 ? '<button class="btn ghost full sm" id="obSaltar">Saltar el resto y empezar</button>' : ''}
+    ${paso === 0 ? `<div class="divider" style="margin:8px 0"></div>
+      <button class="btn ghost full sm" id="obRestaurar">¿Ya tenías tus datos? Recupéralos con tu grupo</button>` : ''}
   </div>`;
 }
 
@@ -313,6 +315,26 @@ export function mount(root, rerender) {
     rerender();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  root.querySelector('#obRestaurar')?.addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    const cod = await pedir({
+      titulo: 'Recuperar mis datos', label: 'Código de tu grupo (ej: familia)',
+      valor: 'familia', ok: 'Recuperar',
+    });
+    if (!cod) return;
+    const original = btn.textContent;
+    btn.textContent = 'Buscando…'; btn.disabled = true;
+    try {
+      const Nube = await import('./nube.js?v=40');
+      const ok = await Nube.restaurarDesdeGrupo(cod, () => {});
+      if (ok) { toast('¡Datos recuperados!'); paso = -1; terminar(d); return; }
+      toast('No encontré datos tuyos en ese grupo con tu cuenta');
+    } catch (e) {
+      toast(e.message || 'No pude recuperar');
+    }
+    btn.textContent = original; btn.disabled = false;
+  });
 }
 
 // ------------------------------------------------------------------ guardar

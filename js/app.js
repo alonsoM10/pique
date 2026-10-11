@@ -1,16 +1,16 @@
 // app.js — arranque, router y ajustes.
 
-import * as S from './store.js?v=39';
-import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir, ico } from './ui.js?v=39';
-import * as Onb from './onboarding.js?v=39';
-import * as Hoy from './view-hoy.js?v=39';
-import * as Entreno from './view-entreno.js?v=39';
-import * as Comida from './view-comida.js?v=39';
-import * as Progreso from './view-progreso.js?v=39';
-import * as Pique from './view-pique.js?v=39';
-import * as Ayuda from './view-ayuda.js?v=39';
-import * as Exp from './exportar.js?v=39';
-import * as Nube from './nube.js?v=39';
+import * as S from './store.js?v=40';
+import { $, $$, esc, num, toast, abrirSheet, cerrarSheet, confirmar, pedir, ico } from './ui.js?v=40';
+import * as Onb from './onboarding.js?v=40';
+import * as Hoy from './view-hoy.js?v=40';
+import * as Entreno from './view-entreno.js?v=40';
+import * as Comida from './view-comida.js?v=40';
+import * as Progreso from './view-progreso.js?v=40';
+import * as Pique from './view-pique.js?v=40';
+import * as Ayuda from './view-ayuda.js?v=40';
+import * as Exp from './exportar.js?v=40';
+import * as Nube from './nube.js?v=40';
 
 const VISTAS = {
   hoy: { t: 'Hoy', v: Hoy },
@@ -79,42 +79,54 @@ function aplicarSesion(user) {
 
   const repintar = () => { if (!enOnboarding && !enLogin) pintar(); };
 
-  // Si ya estaba en un grupo, retomamos la sincronización (migra el id viejo si hace falta).
+  // Decide a dónde entrar (onboarding o app) y hace los remates finales.
+  const continuar = () => {
+    if (!S.perfil().onboarding) { if (!enOnboarding) arrancarOnboarding(); }
+    else if (!enOnboarding) {
+      const h = location.hash.replace('#', '');
+      if (VISTAS[h]) ruta = h;
+      pintar();
+    }
+
+    quitarSplash();
+
+    // Reprogramar los recordatorios de comidas del día (si los activó).
+    if (S.notisComidas()) {
+      import('./notis.js?v=40').then(N => N.programarRecordatorios()).catch(() => {});
+    }
+    // Si entró tocando una notificación (?r=comida), lo llevamos a Comida.
+    try {
+      const rq = new URLSearchParams(location.search).get('r');
+      if (rq && VISTAS[rq]) { ruta = rq; if (!enOnboarding && !enLogin) pintar(); }
+    } catch (e) { /* noop */ }
+
+    // ¿Llegó por link de invitación o dejó un "unirse" a medias? Lo abrimos ya logueado.
+    try {
+      const pend = localStorage.getItem('pique.pendingJoin');
+      if (pend !== null && !S.enGrupo() && !enOnboarding) {
+        localStorage.removeItem('pique.pendingJoin');
+        sheetGrupo(pend);
+        return;
+      }
+    } catch (e) { /* noop */ }
+    abrirInvitacionSiHay();
+  };
+
   if (S.enGrupo()) {
+    // Ya estaba en un grupo en este teléfono: retomamos la sincronización.
     if (S.miPerfilId() && S.miPerfilId() !== user.uid) Nube.unirse(S.grupoCodigo(), repintar).catch(() => {});
     else Nube.iniciar(repintar).catch(() => {});
+    continuar();
+  } else if (!S.perfil().onboarding) {
+    // No está en grupo y aún sin configurar: intentamos recuperar sus datos por su
+    // cuenta de Google (tu cuenta = tus datos). Si no hay nada, va al onboarding.
+    Nube.autoRestaurar(repintar)
+      .then(ok => { if (ok) repintar(); })
+      .catch(() => {})
+      .finally(continuar);
+  } else {
+    continuar();
   }
-
-  // Entrar a la app: onboarding si falta configurarse, si no la vista normal.
-  if (!S.perfil().onboarding) { if (!enOnboarding) arrancarOnboarding(); }
-  else if (!enOnboarding) {
-    const h = location.hash.replace('#', '');
-    if (VISTAS[h]) ruta = h;
-    pintar();
-  }
-
-  quitarSplash();
-
-  // Reprogramar los recordatorios de comidas del día (si los activó).
-  if (S.notisComidas()) {
-    import('./notis.js?v=39').then(N => N.programarRecordatorios()).catch(() => {});
-  }
-  // Si entró tocando una notificación (?r=comida), lo llevamos a Comida.
-  try {
-    const rq = new URLSearchParams(location.search).get('r');
-    if (rq && VISTAS[rq]) { ruta = rq; if (!enOnboarding && !enLogin) pintar(); }
-  } catch (e) { /* noop */ }
-
-  // ¿Llegó por link de invitación o dejó un "unirse" a medias? Lo abrimos ya logueado.
-  try {
-    const pend = localStorage.getItem('pique.pendingJoin');
-    if (pend !== null && !S.enGrupo() && !enOnboarding) {
-      localStorage.removeItem('pique.pendingJoin');
-      sheetGrupo(pend);
-      return;
-    }
-  } catch (e) { /* noop */ }
-  abrirInvitacionSiHay();
 }
 
 // Pantalla de entrada: logo de Pique + "Entrar con Google". Sin login no se entra.
@@ -583,7 +595,7 @@ function sheetAjustes() {
 
     const notisBtn = b.querySelector('#ajNotis');
     if (notisBtn) notisBtn.onclick = async () => {
-      const N = await import('./notis.js?v=39');
+      const N = await import('./notis.js?v=40');
       try {
         if (S.notisComidas()) {
           await N.desactivarRecordatorios();
@@ -620,7 +632,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajWorkerProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=39');
+        const Gem = await import('./gemini.js?v=40');
         await Gem.probarWorker();
         toast('¡Worker funciona! Ya puedes usar la foto del plato');
       } catch (e) {
@@ -639,7 +651,7 @@ function sheetAjustes() {
       const btn = b.querySelector('#ajGemProbar');
       btn.textContent = 'Probando…'; btn.disabled = true;
       try {
-        const Gem = await import('./gemini.js?v=39');
+        const Gem = await import('./gemini.js?v=40');
         await Gem.probarClave();
         toast('¡Clave correcta! Ya puedes usar la foto del plato');
       } catch (e) {

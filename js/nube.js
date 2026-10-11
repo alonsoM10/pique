@@ -4,7 +4,7 @@
 // grupos/<codigo>/perfiles/<uid>. Como el uid es siempre el mismo, no hay duplicados y
 // tus datos te siguen en cualquier teléfono. Sin internet, la app sigue con localStorage.
 
-import * as S from './store.js?v=39';
+import * as S from './store.js?v=40';
 
 // Config pública del proyecto Firebase de Alonso (no es secreto; protegen las reglas).
 const CONFIG = {
@@ -154,20 +154,77 @@ function conTimeout(promesa, ms, msg) {
 
 // Unirse a un grupo: exige estar logueado. La identidad es el uid de Google, así que
 // nunca se duplica (la misma persona escribe siempre sobre su propio documento).
+// Guarda qué grupo es el tuyo, atado a tu cuenta, para poder recuperarlo solo en
+// cualquier teléfono con solo entrar con Google (ver autoRestaurar).
+async function guardarCuenta(cod) {
+  if (!usuario || !db) return;
+  try {
+    await sdk.setDoc(sdk.doc(db, 'cuentas', usuario.uid), { grupo: cod, _t: Date.now() }, { merge: true });
+  } catch (e) { /* no es crítico */ }
+}
+
 export async function unirse(codigo, alActualizar) {
   await cargarAuth();
   if (!usuario) throw new Error('Primero entra con Google para unirte al grupo');
   const cod = normCodigo(codigo);
 
-  S.unirGrupo(cod, usuario.uid);   // mi id pasa a ser mi uid de Google
+  // ¿Ya tenías un perfil tuyo en este grupo? Entonces lo RESTAURAMOS (no lo pisamos
+  // con el perfil nuevo/vacío de este teléfono).
+  let snap = null;
   try {
-    await conTimeout(subirMiPerfil(), 10000,
+    snap = await conTimeout(sdk.getDoc(docMio(cod, usuario.uid)), 10000,
       'No pude conectar con la nube. Revisa tu internet e inténtalo de nuevo.');
-  } catch (e) {
-    S.salirGrupo();
-    throw e;
+  } catch (e) { throw e; }
+
+  if (snap && snap.exists()) {
+    S.entrarConPerfilNube(cod, snap.data());
+  } else {
+    S.unirGrupo(cod, usuario.uid);   // primera vez: mi id pasa a ser mi uid de Google
+    try {
+      await conTimeout(subirMiPerfil(), 10000,
+        'No pude conectar con la nube. Revisa tu internet e inténtalo de nuevo.');
+    } catch (e) {
+      S.salirGrupo();
+      throw e;
+    }
   }
+  await guardarCuenta(cod);
   await iniciar(alActualizar);
+}
+
+// Recuperar manualmente: el usuario da el código de su grupo; si tiene un perfil
+// guardado ahí, lo restauramos. Devuelve true si recuperó, false si no había nada.
+export async function restaurarDesdeGrupo(codigo, alActualizar) {
+  await cargarAuth();
+  if (!usuario) throw new Error('Primero entra con Google');
+  const cod = normCodigo(codigo);
+  const snap = await conTimeout(sdk.getDoc(docMio(cod, usuario.uid)), 10000,
+    'No pude conectar con la nube. Revisa tu internet e inténtalo de nuevo.');
+  if (!snap.exists()) return false;
+  S.entrarConPerfilNube(cod, snap.data());
+  await guardarCuenta(cod);
+  await iniciar(alActualizar);
+  return true;
+}
+
+// Al entrar con Google: si no estás en un grupo en este teléfono pero tu cuenta ya
+// tenía uno guardado, lo recuperamos solo (tus datos vuelven sin hacer nada).
+export async function autoRestaurar(alActualizar) {
+  await cargarAuth();
+  if (!usuario || S.enGrupo() || !db) return false;
+  try {
+    const c = await conTimeout(sdk.getDoc(sdk.doc(db, 'cuentas', usuario.uid)), 8000, 'timeout');
+    if (!c.exists()) return false;
+    const cod = normCodigo(c.data().grupo);
+    if (!cod) return false;
+    const snap = await conTimeout(sdk.getDoc(docMio(cod, usuario.uid)), 8000, 'timeout');
+    if (!snap.exists()) return false;
+    S.entrarConPerfilNube(cod, snap.data());
+    await iniciar(alActualizar);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 export function salir() {
